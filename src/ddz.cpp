@@ -2,13 +2,15 @@
 #include <vector>
 #include <set>
 
+#include "jsoncpp/json.h"
+
 using namespace std;
 
 set<int> my_cards;
 vector<int> last_hand;
 
 int my_shape[15] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
-int remain_shape[15] = {4,4,4,4,4,4,4,4,4,4,4,4,4,4,1,1};
+int remain_shape[15] = {4,4,4,4,4,4,4,4,4,4,4,4,4,1,1};
 int remain_card_number[3] = {20,17,17};
 
 int my_position;
@@ -38,6 +40,8 @@ void input() {
     Json::Reader reader;
     reader.parse(line, input);
 
+    cout << input << std::endl;
+
     // First request
     {
 	auto first_request = input["requests"][0u]; // 
@@ -49,6 +53,7 @@ void input() {
 	    my_cards.insert(card);
 	    ++my_shape[card_to_point(card)];
 	}
+	cout << first_request << endl;
 	// Get my position
 	if (first_history[0u].size() == 0) {
 	    if (first_history[1].size() == 0) {
@@ -83,8 +88,8 @@ void input() {
 	    auto my_action = input["responses"][turn]; 
 	    for (int i = 0; i < my_action.size(); i++) {
 		int card = my_action[i].asInt(); 
-		my_cards.erase(card); 
 		--my_shape[card_to_point(card)];
+		my_cards.erase(card); 
 	    }
 	    remain_card_number[my_position] -= my_action.size();
 	} else {
@@ -117,5 +122,18 @@ void output(vector<int> cards) {
 int main() {
     init();
     input();
+    //cout << my_position << endl;
+    //for (int i  = 0; i < 15; ++i) {
+    //    cout << my_shape[i] << ' ';
+    //}
+    //cout << endl;
+    //for (int i  = 0; i < 15; ++i) {
+    //    cout << remain_shape[i] << ' ';
+    //}
+    //cout << endl;
+    //for (int i  = 0; i < 3; ++i) {
+    //    cout << remain_card_number[i] << ' ';
+    //}
+    //cout << endl;
     output(play());
 }
