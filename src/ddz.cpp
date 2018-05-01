@@ -12,7 +12,6 @@ vector<int> last_hand;
 int my_shape[15] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
 int remain_shape[15] = {4,4,4,4,4,4,4,4,4,4,4,4,4,1,1};
 int remain_card_number[3] = {20,17,17};
-
 int my_position;
 
 void init() {
@@ -26,7 +25,7 @@ vector<int> play() {
 
 int card_to_point(int card) {
     if (card >= 52) {
-	return card - 38;
+	return card - 39;
     } else {
 	return card / 4;
     }
@@ -40,7 +39,7 @@ void input() {
     Json::Reader reader;
     reader.parse(line, input);
 
-    cout << input << std::endl;
+    cout << input << endl; // for debug
 
     // First request
     {
@@ -52,8 +51,8 @@ void input() {
 	    int card = own[i].asInt();
 	    my_cards.insert(card);
 	    ++my_shape[card_to_point(card)];
+	    --remain_shape[card_to_point(card)];
 	}
-	cout << first_request << endl;
 	// Get my position
 	if (first_history[0u].size() == 0) {
 	    if (first_history[1].size() == 0) {
@@ -61,8 +60,7 @@ void input() {
 	    } else {
 		my_position = 1; // Xiajia
 	    }
-	}
-	else {
+	} else {
 	    my_position = 2; // Menban
 	}
     }
@@ -122,18 +120,20 @@ void output(vector<int> cards) {
 int main() {
     init();
     input();
-    //cout << my_position << endl;
-    //for (int i  = 0; i < 15; ++i) {
-    //    cout << my_shape[i] << ' ';
-    //}
-    //cout << endl;
-    //for (int i  = 0; i < 15; ++i) {
-    //    cout << remain_shape[i] << ' ';
-    //}
-    //cout << endl;
-    //for (int i  = 0; i < 3; ++i) {
-    //    cout << remain_card_number[i] << ' ';
-    //}
-    //cout << endl;
+    cout << my_position << endl;
+    /** Below for debug **/
+    for (int i  = 0; i < 15; ++i) {
+        cout << my_shape[i] << ' ';
+    }
+    cout << endl;
+    for (int i  = 0; i < 15; ++i) {
+        cout << remain_shape[i] << ' ';
+    }
+    cout << endl;
+    for (int i  = 0; i < 3; ++i) {
+        cout << remain_card_number[i] << ' ';
+    }
+    cout << endl;
+    /** Above for debug **/
     output(play());
 }
