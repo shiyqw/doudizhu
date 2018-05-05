@@ -1,0 +1,5 @@
+function [ y ] = predict(X, w )
+n = size(X, 1);
+
+end
+
