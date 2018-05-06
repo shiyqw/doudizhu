@@ -1,6 +1,6 @@
 %A=importdata('greedy/v1/dizhu.dat');
 %A=importdata('greedy/v1/xiajia.dat');
-A=importdata('greedy/v1/dizhu.dat');
+A=importdata('greedy/v1/menban.dat');
 n = size(A,1);
 d = size(A,2)-1;
 X = A(:,1:d);
