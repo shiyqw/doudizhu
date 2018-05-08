@@ -295,6 +295,7 @@ Hand shape_to_hand(vector<int> shape) {
 	    }
 	}
 	hand.set_carry(carry);
+	return hand;
     }
     return Hand();
 }
