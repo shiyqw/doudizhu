@@ -268,7 +268,7 @@ Hand shape_to_hand(vector<int> shape) {
 	return hand;
     } else if (width > 0) {
 	int left = -1;
-	int right = -1;
+	int right = 15;
 	for (int i = 0; i < 15; ++i) {
 	    if (shape[i] == width) {
 		left = i;
@@ -278,7 +278,6 @@ Hand shape_to_hand(vector<int> shape) {
 	for (int i = left+1; i < 15; ++i) {
 	    if (shape[i] != width) {
 		right = i;
-		int right = -1;
 		break;
 	    }
 	}
@@ -479,7 +478,8 @@ vector<int> play(Hand prev) {
 			if (carriable.size() < length) {
 			    continue;
 			} 
-			auto combinations = generate_combination(carriable.size(), length);
+			//string_hand.show();
+			auto combinations = generate_combination(carriable.size(), l);
 			for (auto combination : combinations) {
 			    vector<int> carry;
 			    for (auto index : combination) {
@@ -495,6 +495,7 @@ vector<int> play(Hand prev) {
 				redo(string_hand);
 				//double val = 0.;
 				double val = evaluate();
+				//string_hand.show();
 				if (val > max_val) {
 				    max_hand = string_hand;
 				    max_val = val;
