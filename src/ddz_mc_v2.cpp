@@ -6,14 +6,12 @@
 #include <functional>
 #include <ctime>
 #include <cstdlib>
-#include <list>
 
 #include "jsoncpp/json.h"
 
 using namespace std;
 
 int mc_game_number;
-int N = 3000;
 
 set<int> my_cards;
 set<int> last_hand_cards;
@@ -315,14 +313,13 @@ struct Hand {
 	}
 	return false;
     }
-    //void show() {
-    //    stringstream buffer;
-    //    buffer << point << ":" << width << "x" << length;
-    //    for (auto card : carry) {
-    //        buffer << " " << card;
-    //    }
-    //    cout << setw(20) << left << buffer.str();
-    //}
+    void show() {
+	cout << point << ":" << width << "x" << length;
+	for (auto card : carry) {
+	    cout << " " << card;
+	}
+	cout << endl;
+    }
 };
 
 Hand last_hand;
@@ -514,19 +511,7 @@ bool check_valid(Hand hand, Hand prev) {
     return (hand.point > prev.point);
 }
     
-vector<int> mc_shuffle() {
-    vector<int> cards;
-    for (int i = 0; i < 15; ++i) {
-	for (int j = 0; j < remain_shape[i]; ++j) {
-	    cards.push_back(i);
-	}
-    }
-    random_shuffle(cards.begin(), cards.end());
-    return cards;
-}
-
-
-void mc_init(vector<int> cards) {
+void mc_init() {
     for (int i = 0; i < 3; ++i) {
 	mc_rem[i] = rem[i];
     }
@@ -539,6 +524,13 @@ void mc_init(vector<int> cards) {
 	    mc_shape[(my_pos+i)%3][j] = 0;
 	}
     }
+    vector<int> cards;
+    for (int i = 0; i < 15; ++i) {
+	for (int j = 0; j < remain_shape[i]; ++j) {
+	    cards.push_back(i);
+	}
+    }
+    random_shuffle(cards.begin(), cards.end());
     for(int i = 0; i < rem[(my_pos+1)%3]; ++i) {
 	mc_shape[(my_pos+1)%3][cards[i]]++;
     }
@@ -948,7 +940,6 @@ int get_length_with_width(int left, int width) {
 
 vector<int> mc_play(Hand prev) {
     auto max_hand = Hand();
-    list<pair<Hand, int>> hands;
     double max_win_rate = -10000.;
     /** Search Strings, 3+2 and 3+1 **/
     for (auto left = 0; left < 13; ++left) {
@@ -992,7 +983,23 @@ vector<int> mc_play(Hand prev) {
 			    //string_hand.show();
 			    /** Start main evaluation area **/
 			    if (check_valid(string_hand, prev)) {
-				hands.push_back(make_pair(string_hand, 0));
+				redo(string_hand);
+				// Monto Carlo To End
+				int win_num = 0;
+				for (int i = 0; i < mc_game_number; ++i) {
+				    mc_init();
+				    int win_pos = mc_run(string_hand);
+				    if (win_pos == 0 && my_pos == 0) ++win_num;
+				    if (win_pos != 0 && my_pos != 0) ++win_num;
+				}
+				double win_rate = (double) win_num / (double) mc_game_number;
+				//string_hand.show();
+				//cout << "win rate " << win_rate << endl;
+				if (win_rate > max_win_rate) {
+				    max_hand = string_hand;
+				    max_win_rate = win_rate;
+				}
+				undo(string_hand);
 			    }
 			    /** End main evaluation area **/
 			    string_hand.clear_carry();
@@ -1004,7 +1011,23 @@ vector<int> mc_play(Hand prev) {
 		    continue;
 		}
 		//string_hand.show();
-		hands.push_back(make_pair(string_hand, 0));
+		redo(string_hand);
+		// Monto Carlo To End
+		int win_num = 0;
+		for (int i = 0; i < mc_game_number; ++i) {
+		    mc_init();
+		    int win_pos = mc_run(string_hand);
+		    if (win_pos == 0 && my_pos == 0) ++win_num;
+		    if (win_pos != 0 && my_pos != 0) ++win_num;
+		}
+		double win_rate = (double) win_num / (double) mc_game_number;
+		//string_hand.show();
+		//cout << "win rate " << win_rate << endl;
+		if (win_rate > max_win_rate) {
+		    max_hand = string_hand;
+		    max_win_rate = win_rate;
+		}
+		undo(string_hand);
 	    }
 	}
     }
@@ -1015,7 +1038,23 @@ vector<int> mc_play(Hand prev) {
 	    Hand pure_hand = Hand(i, width, 1);
 	    //pure_hand.show();
 	    if (check_valid(pure_hand, prev)) {
-		hands.push_back(make_pair(pure_hand, 0));
+		redo(pure_hand);
+		// Monto Carlo To End
+		int win_num = 0;
+		for (int i = 0; i < mc_game_number; ++i) {
+		    mc_init();
+		    int win_pos = mc_run(pure_hand);
+		    if (win_pos == 0 && my_pos == 0) ++win_num;
+		    if (win_pos != 0 && my_pos != 0) ++win_num;
+		}
+		double win_rate = (double) win_num / (double) mc_game_number;
+		//pure_hand.show();
+		//cout << "win rate " << win_rate << endl;
+		if (win_rate > max_win_rate) {
+		    max_hand = pure_hand;
+		    max_win_rate = win_rate;
+		}
+		undo(pure_hand);
 	    }
 	}
     }
@@ -1027,7 +1066,23 @@ vector<int> mc_play(Hand prev) {
 		Hand bomb_hand = Hand(i, 4, 1);
 		//bomb_hand.show();
 		if (check_valid(bomb_hand, prev)) {
-		    hands.push_back(make_pair(bomb_hand, 0));
+		    redo(bomb_hand);
+		    // Monto Carlo To End
+		    int win_num = 0;
+		    for (int i = 0; i < mc_game_number; ++i) {
+			mc_init();
+			int win_pos = mc_run(bomb_hand);
+			if (win_pos == 0 && my_pos == 0) ++win_num;
+			if (win_pos != 0 && my_pos != 0) ++win_num;
+		    }
+		    double win_rate = (double) win_num / (double) mc_game_number;
+		    //bomb_hand.show();
+		    //cout << "win rate " << win_rate << endl;
+		    if (win_rate > max_win_rate) {
+			max_hand = bomb_hand;
+			max_win_rate = win_rate;
+		    }
+		    undo(bomb_hand);
 		}
 	    }
 	}
@@ -1035,7 +1090,23 @@ vector<int> mc_play(Hand prev) {
 	    Hand bomb_hand = Hand(13, 1, 2);
 	    //bomb_hand.show();
 	    if (check_valid(bomb_hand, prev)) {
-		hands.push_back(make_pair(bomb_hand, 0));
+		redo(bomb_hand);
+		// Monto Carlo To End
+		int win_num = 0;
+		for (int i = 0; i < mc_game_number; ++i) {
+		    mc_init();
+		    int win_pos = mc_run(bomb_hand);
+		    if (win_pos == 0 && my_pos == 0) ++win_num;
+		    if (win_pos != 0 && my_pos != 0) ++win_num;
+		}
+		double win_rate = (double) win_num / (double) mc_game_number;
+		//bomb_hand.show();
+		//cout << "win rate " << win_rate << endl;
+		if (win_rate > max_win_rate) {
+		    max_hand = bomb_hand;
+		    max_win_rate = win_rate;
+		}
+		undo(bomb_hand);
 	    }
 	}
     }
@@ -1045,66 +1116,24 @@ vector<int> mc_play(Hand prev) {
     /** Search Pass (May be used for cooperation) **/
     // Monto Carlo To End
     if (!prev.is_pass()) {
-	hands.push_back(make_pair(Hand(), 0));
+	int win_num = 0;
+	for (int i = 0; i < mc_game_number; ++i) {
+	    mc_init();
+	    int win_pos = mc_run(Hand());
+	    if (win_pos == 0 && my_pos == 0) ++win_num;
+	    if (win_pos != 0 && my_pos != 0) ++win_num;
+	}
+	double win_rate = (double) win_num / (double) mc_game_number;
+	//cout << "pass" << endl;
+	//cout << "win rate " << win_rate << endl;
+	if (win_rate > max_win_rate) {
+	    max_hand = Hand();
+	    max_win_rate = win_rate;
+	}
     }
 
-    if (hands.size() == 0) {
-	max_hand = Hand();
-    } else if (hands.size() == 1) {
-	max_hand = hands.front().first;
-    } else {
-
-	// Optimizaion
-	int k = hands.size();
-	vector<int> n;
-	double logk = 0.5;
-	for (int i = 2; i <= k; ++i) {
-	    logk += 1.0 / (double) i;
-	}
-	//cout << logk << endl;
-	n.push_back(0);
-	for (int i = 1; i < k; ++i) {
-	    int nk = (int) ceil(1.0 / logk * ((double) (N-k)) / ((double) (k+1-i)));
-	    n.push_back(nk);
-	}
-	//cout << "N: ";
-	//for (auto nk : n) {
-	//    cout << nk << " ";
-	//}
-	//cout << endl;
-
-	for (int i = 1; i <= k-1; ++i) {
-	    int game_number = n[i]-n[i-1];
-	    for (int j = 0; j < game_number; ++j) {
-		auto cards = mc_shuffle();
-		for (auto it = hands.begin(); it != hands.end(); ++it) {
-		    auto hand = it->first;
-		    redo(hand);
-		    mc_init(cards);
-		    int win_pos = mc_run(hand);
-		    if (win_pos == 0 && my_pos == 0) ++it->second;
-		    if (win_pos != 0 && my_pos != 0) ++it->second;
-		    undo(hand);
-		}
-	    }
-	    int min_win = 10000;
-	    list<pair<Hand, int>>::iterator worst_hand, it;
-	    for (auto it = hands.begin(); it != hands.end(); ++it) {
-		if (it->second < min_win) {
-		    worst_hand = it;
-		    min_win = it->second;
-		}
-	    }
-	    hands.erase(worst_hand);
-	    //for (auto hand_with_win : hands) {
-	    //    hand_with_win.first.show();
-	    //    cout << " win num " << hand_with_win.second << endl;
-	    //}
-	    //cout << "-------------------------------" << endl;
-	}
-	max_hand = hands.front().first;
-    }
-
+    //cout << "final result :" << endl;
+    //max_hand.show();
     return hand_to_card(max_hand);
 }
 
@@ -1223,9 +1252,9 @@ int main() {
     } else if (rem[my_pos] > 10) {
 	mc_game_number = 50;
     } else if (rem[my_pos] > 5) {
-	mc_game_number = 1000;
+	mc_game_number = 100;
     } else {
-	mc_game_number = 1000;
+	mc_game_number = 200;
     }
     mc_game_number *= 2;
     if (!last_hand.is_pass()) {
