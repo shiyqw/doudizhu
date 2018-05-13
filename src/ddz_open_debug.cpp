@@ -13,7 +13,7 @@
 using namespace std;
 
 int mc_game_number;
-int N = 4000;
+int N = 5000;
 
 set<int> my_cards;
 set<int> last_hand_cards;
@@ -317,14 +317,14 @@ struct Hand {
 	}
 	return false;
     }
-    //void show() {
-    //    stringstream buffer;
-    //    buffer << point << ":" << width << "x" << length;
-    //    for (auto card : carry) {
-    //        buffer << " " << card;
-    //    }
-    //    cout << setw(20) << left << buffer.str();
-    //}
+    void show() {
+        stringstream buffer;
+        buffer << point << ":" << width << "x" << length;
+        for (auto card : carry) {
+            buffer << " " << card;
+        }
+        cout << setw(20) << left << buffer.str();
+    }
 };
 
 Hand last_hand;
@@ -1145,11 +1145,11 @@ vector<int> mc_play(Hand prev) {
 	    }
 	    int min_win = 0x7FFFFFFF;
 	    list<pair<Hand, int>>::iterator worst_hand, it;
-	    //for (auto hand_with_win : hands) {
-	    //    hand_with_win.first.show();
-	    //    cout << " win num " << hand_with_win.second / 100. << endl;
-	    //}
-	    //cout << "-------------------------------" << endl;
+	    for (auto hand_with_win : hands) {
+	        hand_with_win.first.show();
+	        cout << " win num " << hand_with_win.second / 100. << endl;
+	    }
+	    cout << "-------------------------------" << endl;
 	    for (auto it = hands.begin(); it != hands.end(); ++it) {
 		if (it->second < min_win) {
 		    worst_hand = it;
