@@ -319,14 +319,14 @@ struct Hand {
 	}
 	return false;
     }
-    void show() {
-        stringstream buffer;
-        buffer << point << ":" << width << "x" << length;
-        for (auto card : carry) {
-            buffer << " " << card;
-        }
-        cout << setw(20) << left << buffer.str();
-    }
+    //void show() {
+    //    stringstream buffer;
+    //    buffer << point << ":" << width << "x" << length;
+    //    for (auto card : carry) {
+    //        buffer << " " << card;
+    //    }
+    //    cout << setw(20) << left << buffer.str();
+    //}
 };
 
 Hand last_hand;
