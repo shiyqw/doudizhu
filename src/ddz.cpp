@@ -13,7 +13,7 @@
 using namespace std;
 
 int mc_game_number;
-int N = 5000;
+int N = 4000;
 double elapsed_secs = -1.;
 
 set<int> my_cards;
@@ -1193,7 +1193,7 @@ vector<int> mc_play(Hand prev) {
 		}
 		clock_t current_time = clock();
 		elapsed_secs = double (current_time - start_time) / CLOCKS_PER_SEC;
-		if (elapsed_secs > 0.9) {
+		if (elapsed_secs > 0.95) {
 		    int max_win = -0x7FFFFFFF;
 		    list<pair<Hand, int>>::iterator best_hand;
 		    for (auto it = hands.begin(); it != hands.end(); ++it) {
