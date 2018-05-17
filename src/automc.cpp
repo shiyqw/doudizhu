@@ -7,6 +7,7 @@
 #include <ctime>
 #include <cstdlib>
 #include <list>
+#include <fstream>
 
 #include "jsoncpp/json.h"
 
@@ -17,19 +18,15 @@ using namespace std;
 /*****************************************************************************/
 int MC_GAME_NUMBERS = 5000;
 double ELAPSED_SECS = -1.;
-set<int> my_cards;
-set<int> last_hand_cards;
 set<int> public_cards;
-vector<int> last_hand_shape;
-vector<int> my_shape = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
-int remain_shape[15] = {4,4,4,4,4,4,4,4,4,4,4,4,4,1,1};
-int rem[3] = {20,17,17};
 int mc_rem[3];
 int mc_shape[3][15];
-int my_pos;
-int last_hand_pos = -1;
 int score[3];
-
+int shape[3][15];
+int origin[3][15];
+int rem[3];
+vector< vector<int> > history;
+vector<double> real_time_win_rate;
 /*****************************************************************************/
 // Data Structure for Hand Type
 /*****************************************************************************/
@@ -69,18 +66,17 @@ struct Hand {
     return false;
   }
 
-  //void show() {
-  //    stringstream buffer;
-  //    buffer << point << ":" << width << "x" << length;
-  //    for (auto card : carry) {
-  //        buffer << " " << card;
-  //    }
-  //    cout << setw(20) << left << buffer.str();
-  //}
+  void show() {
+      stringstream buffer;
+      buffer << point << ":" << width << "x" << length;
+      for (auto card : carry) {
+          buffer << " " << card;
+      }
+      cout << setw(20) << left << buffer.str();
+  }
 
 };
 
-Hand last_hand;
 
 bool my_comp(const pair<Hand, double> & a, const pair<Hand, double> & b) {
   return a.second < b.second;
@@ -296,96 +292,6 @@ int card_to_point(int card) {
   }
 }
 
-vector<int> card_to_shape(set<int> cards) {
-  vector<int> shape(15, 0);
-  for (auto card : cards) {
-    ++shape[card_to_point(card)];
-  }
-  return shape;
-}
-
-// Note: this method will only used to transform last hand
-Hand shape_to_hand(vector<int> shape) {
-  int width = *max_element(shape.begin(), shape.end());
-  int total = accumulate(shape.begin(), shape.end(), 0);
-  if (width == 4) {
-    vector<int> carry;
-    Hand hand;
-    for (int i = 0; i < 15; ++i) {
-      if (shape[i] == 4) {
-        hand = Hand(i, 4, 1);
-      } else {
-        for (int j = 0; j < shape[i]; ++j) {
-          carry.push_back(i);
-        }
-      }
-    }
-    hand.set_carry(carry);
-    return hand;
-  } else if (width > 0) {
-    int left = -1;
-    int right = 15;
-    for (int i = 0; i < 15; ++i) {
-      if (shape[i] == width) {
-        left = i;
-        break;
-      }
-    }
-    for (int i = left+1; i < 15; ++i) {
-      if (shape[i] != width) {
-        right = i;
-        break;
-      }
-    }
-    Hand hand = Hand(left, width, right-left);
-    if (width != 3) {
-        return hand;
-    }
-    vector<int> carry;
-    for (int i = 0; i < 14; ++i) {
-      if (shape[i] != 0 && shape[i] != 3) {
-        for (int j = 0; j < shape[i]; ++j) {
-          carry.push_back(i);
-        }
-      }
-    }
-    hand.set_carry(carry);
-    return hand;
-  }
-  return Hand();
-}
-
-Hand card_to_hand(set<int> cards) {
-  return(shape_to_hand(card_to_shape(cards)));
-}
-
-vector<int> hand_to_shape(Hand hand) {
-  vector<int> shape(15, 0);
-  for (int i = hand.point; i < hand.point+hand.length; ++i) {
-    shape[i] += hand.width;
-  }
-  for (auto point : hand.carry) {
-    shape[point]++;
-  }
-  return shape;
-}
-
-vector<int> shape_to_card(vector<int> shape) {
-  vector<int> cards;
-  for (auto card : my_cards) {
-    auto point = card_to_point(card);
-    if (shape[point] > 0) {
-      cards.push_back(card);
-      shape[point]--;
-    }
-  }
-  return cards;
-}
-
-vector<int> hand_to_card(Hand hand) {
-  return shape_to_card(hand_to_shape(hand));
-}
-
 /*****************************************************************************/
 // Helper Function for Generating Carriable Cards
 /*****************************************************************************/
@@ -475,56 +381,39 @@ void mc_undo(int pos, Hand hand) {
   }
 }
 
-vector<int> mc_shuffle() {
+vector<int> mc_shuffle(int pos) {
   vector<int> cards;
-  if (my_pos != 0) {
-    for (auto card : public_cards) {
-      --remain_shape[card_to_point(card)];
-    }
-  }
   for (int i = 0; i < 15; ++i) {
-    for (int j = 0; j < remain_shape[i]; ++j) {
-      cards.push_back(i);
+    for (int k = 1; k < 3; ++k) {
+      for (int j = 0; j < shape[(pos+k)%3][i]; ++j) {
+        cards.push_back(i);
+      }
     }
   }
   random_shuffle(cards.begin(), cards.end());
-  if (my_pos == 1) {
-    for (auto card : public_cards) {
-      cards.push_back(card_to_point(card));
-    }
-  } else if (my_pos == 2) {
-    for (auto card : public_cards) {
-      cards.insert(cards.begin(), card_to_point(card));
-    }
-  }
-  if (my_pos != 0) {
-    for (auto card : public_cards) {
-      ++remain_shape[card_to_point(card)];
-    }
-  }
   return cards;
 }
 
 
-void mc_init(vector<int> cards) {
+void mc_init(int pos, vector<int> cards) {
   for (int i = 0; i < 3; ++i) {
     mc_rem[i] = rem[i];
     score[i] = 0;
   }
   // Shuffle remaining cards;
   for (int i = 0; i < 15; ++i) {
-    mc_shape[my_pos][i] = my_shape[i];
+    mc_shape[pos][i] = shape[pos][i];
   }
   for (int i = 1; i < 3; ++i) {
     for (int j = 0; j < 15; ++j) {
-      mc_shape[(my_pos+i)%3][j] = 0;
+      mc_shape[(pos+i)%3][j] = 0;
     }
   }
-  for (int i = 0; i < rem[(my_pos+1)%3]; ++i) {
-    mc_shape[(my_pos+1)%3][cards[i]]++;
+  for (int i = 0; i < rem[(pos+1)%3]; ++i) {
+    mc_shape[(pos+1)%3][cards[i]]++;
   }
-  for (int i = 0; i < rem[(my_pos+2)%3]; ++i) {
-    mc_shape[(my_pos+2)%3][cards[i+rem[(my_pos+1)%3]]]++;
+  for (int i = 0; i < rem[(pos+2)%3]; ++i) {
+    mc_shape[(pos+2)%3][cards[i+rem[(pos+1)%3]]]++;
   }
 }
 
@@ -541,10 +430,10 @@ int mc_get_length_with_width(int pos, int left, int width) {
 /*****************************************************************************/
 // Methods for Hands Redoing and Undoing for Searching Best Hand
 /*****************************************************************************/
-int get_length_with_width(int left, int width) {
+int get_length_with_width(int pos, int left, int width) {
   int right_limit = width >= 3 ? 13 : 12;
   for (int i = left; i <= right_limit; ++i) {
-    if (my_shape[i] < width || i == right_limit) {
+    if (shape[pos][i] < width || i == right_limit) {
       return (i-left);
     }
   }
@@ -552,31 +441,31 @@ int get_length_with_width(int left, int width) {
 }
 
 
-void redo(Hand hand) {
+void redo(int pos, Hand hand) {
   if (hand.is_pass()) {
     return;
   }
   for (int i = hand.point; i < hand.point + hand.length; ++i) {
-    my_shape[i] -= hand.width;
-    rem[my_pos] -= hand.width;
+    shape[pos][i] -= hand.width;
+    rem[pos] -= hand.width;
   }
   for (auto card : hand.carry) {
-    my_shape[card]--;
-    rem[my_pos]--;
+    shape[pos][card]--;
+    rem[pos]--;
   }
 }
 
-void undo(Hand hand) {
+void undo(int pos, Hand hand) {
   if (hand.is_pass()) {
     return;
   }
   for (int i = hand.point; i < hand.point + hand.length; ++i) {
-    my_shape[i] += hand.width;
-    rem[my_pos] += hand.width;
+    shape[pos][i] += hand.width;
+    rem[pos] += hand.width;
   }
   for (auto card : hand.carry) {
-    my_shape[card]++;
-    rem[my_pos]++;
+    shape[pos][card]++;
+    rem[pos]++;
   }
 }
 
@@ -724,7 +613,7 @@ Hand mc_step(int pos, Hand prev, int random_number) {
 /*****************************************************************************/
 // Monte Carlo Process (One Game)
 /*****************************************************************************/
-int mc_run(Hand prev_hand) {
+int mc_run(int pos, Hand prev_hand) {
 
   //cout << endl;
   //cout << "start run" << endl;
@@ -738,7 +627,7 @@ int mc_run(Hand prev_hand) {
   //}
   //cout << "********************" << endl;
 
-  int position = (my_pos + 1) % 3;
+  int position = (pos + 1) % 3;
   int pass = 0;
   while(mc_rem[0] != 0 && mc_rem[1] != 0 && mc_rem[2] != 0) {
     int random_number = 1;
@@ -787,7 +676,7 @@ int mc_run(Hand prev_hand) {
 /*****************************************************************************/
 // Search Process: Start Monte Carlo Process for Each Hand and Choose the Best
 /*****************************************************************************/
-vector<int> mc_play(Hand prev) {
+Hand one_hand(int pos, Hand prev) {
   clock_t start_time = clock();
   auto max_hand = Hand();
   list<pair<Hand, int>> hands;
@@ -796,7 +685,7 @@ vector<int> mc_play(Hand prev) {
   /** Search Strings, 3+2 and 3+1 **/
   for (auto left = 0; left < 13; ++left) {
     for (auto width = 1; width <= 4; ++width) {
-      auto length = get_length_with_width(left, width);
+      auto length = get_length_with_width(pos, left, width);
       auto min_length = 7-2*width;
       if (width == 4) {
         min_length = 1;
@@ -812,7 +701,7 @@ vector<int> mc_play(Hand prev) {
               if (i >= left && i < left+l) {
                 continue;
               }
-              if (my_shape[i] < carry_width) {
+              if (shape[pos][i] < carry_width) {
                 continue;
               }
               if (i == 12 && width == 4) {
@@ -860,7 +749,7 @@ vector<int> mc_play(Hand prev) {
 
   /** Search pure 1 or 2  card hands **/
   for (int i = 0; i < 15; ++i) {
-    for (int width = 1; width <= my_shape[i] && width <= 2; ++width) {
+    for (int width = 1; width <= shape[pos][i] && width <= 2; ++width) {
       Hand pure_hand = Hand(i, width, 1);
       //pure_hand.show();
       if (check_valid(pure_hand, prev)) {
@@ -871,10 +760,9 @@ vector<int> mc_play(Hand prev) {
 
   /** Search Bomb **/
   if ((rem[0] <= 6 || rem[1] <= 6 || rem[2] <= 6)
-        && my_pos+last_hand_pos != 3
         && prev.length != 0) {
     for (int i = 0; i < 13; ++i) {
-      if (my_shape[i] == 4) {
+      if (shape[pos][i] == 4) {
         Hand bomb_hand = Hand(i, 4, 1);
         //bomb_hand.show();
         if (check_valid(bomb_hand, prev)) {
@@ -882,7 +770,7 @@ vector<int> mc_play(Hand prev) {
         }
       }
     }
-    if (my_shape[13] == 1 && my_shape[14] == 1) {
+    if (shape[pos][13] == 1 && shape[pos][14] == 1) {
       Hand bomb_hand = Hand(13, 1, 2);
       //bomb_hand.show();
       if (check_valid(bomb_hand, prev)) {
@@ -919,14 +807,14 @@ vector<int> mc_play(Hand prev) {
     for (int i = 1; i <= k-1; ++i) {
       int game_number = n[i]-n[i-1];
       for (int j = 0; j < game_number; ++j) {
-        auto cards = mc_shuffle();
+        auto cards = mc_shuffle(pos);
         for (auto it = hands.begin(); it != hands.end(); ++it) {
           auto hand = it->first;
-          redo(hand);
-          mc_init(cards);
-          mc_calc_detail(my_pos, hand);
-          int win_pos = mc_run(hand);
-          if (my_pos == 0) {
+          redo(pos, hand);
+          mc_init(pos, cards);
+          mc_calc_detail(pos, hand);
+          int win_pos = mc_run(pos, hand);
+          if (pos == 0) {
             int delta = 2*score[0] - (score[1]+score[2]);
             it->second += delta;
             if (win_pos == 0) {
@@ -934,7 +822,7 @@ vector<int> mc_play(Hand prev) {
             } else {
               it->second -= 400;
             }
-          } else if (my_pos != 0) {
+          } else if (pos != 0) {
             int delta = (score[1]+score[2]) - 2*score[0];
             it->second += delta;
             if (win_pos == 0) {
@@ -943,23 +831,23 @@ vector<int> mc_play(Hand prev) {
               it->second += 400;
             }
           }
-          undo(hand);
+          undo(pos, hand);
         }
         clock_t current_time = clock();
         ELAPSED_SECS = double (current_time - start_time) / CLOCKS_PER_SEC;
-        if (ELAPSED_SECS > 0.9) {
-          int max_win = -0x7FFFFFFF;
-          list<pair<Hand, int>>::iterator best_hand;
-          for (auto it = hands.begin(); it != hands.end(); ++it) {
-            if (it->second > max_win) {
-              best_hand = it;
-              max_win = it->second;
-            }
-          }
+        //if (ELAPSED_SECS > 0.9) {
+        //  int max_win = -0x7FFFFFFF;
+        //  list<pair<Hand, int>>::iterator best_hand;
+        //  for (auto it = hands.begin(); it != hands.end(); ++it) {
+        //    if (it->second > max_win) {
+        //      best_hand = it;
+        //      max_win = it->second;
+        //    }
+        //  }
 
-          max_hand = best_hand->first;
-          return hand_to_card(max_hand);
-        }
+        //  max_hand = best_hand->first;
+        //  return max_hand;
+        //}
       }
       int min_win = 0x7FFFFFFF;
       list<pair<Hand, int>>::iterator worst_hand, it;
@@ -976,135 +864,251 @@ vector<int> mc_play(Hand prev) {
           min_win = it->second;
         }
       }
-      hands.erase(worst_hand);
 
       //cout << "used seconds:" << ELAPSED_SECS << endl;
 
+      hands.erase(worst_hand);
     }
     max_hand = hands.front().first;
+    real_time_win_rate.push_back(hands.front().second);
   }
 
-  return hand_to_card(max_hand);
-}
-
-/*****************************************************************************/
-// JSON I/O
-/*****************************************************************************/
-void input() {
-  string line;
-  getline(cin, line);
-  Json::Value input;
-  Json::Reader reader;
-  reader.parse(line, input);
-
-  // First request
-  {
-    auto first_request = input["requests"][0u]; 
-    auto own = first_request["own"];
-    auto dipai = first_request["publiccard"];
-    auto first_history = first_request["history"];
-    for (unsigned i = 0; i < own.size(); i++) {
-      int card = own[i].asInt();
-      my_cards.insert(card);
-      --remain_shape[card_to_point(card)];
-    }
-    // Get my position
-    if (first_history[0u].size() == 0) {
-      if (first_history[1].size() == 0) {
-        my_pos = 0; // Dizhu
-      } else {
-        my_pos = 1; // Xiajia
-      }
-    } else {
-      my_pos = 2; // Menban
-    }
-
-    for (int i = 0; i < 3; ++i) {
-      public_cards.insert(dipai[i].asInt());
-    }
-  }
-
-  int turn_number = input["requests"].size();
-
-  for (int turn = 0; turn < turn_number; ++turn) {
-    auto history = input["requests"][turn]["history"];
-    // Recover Remain Shape and Remain Card Numbers
-    for (int pos = 0; pos < 2; pos++) {
-      int player_position = (my_pos + pos + 1) % 3;
-      auto player_action = history[pos];
-      for (int i = 0; i < player_action.size(); i++) {
-        int card = player_action[i].asInt();
-        --remain_shape[card_to_point(card)];
-        if (public_cards.count(card) > 0) {
-          public_cards.erase(card);
-        }
-      }
-      rem[player_position] -= player_action.size();
-    }
-    if (turn != turn_number - 1) {
-      // Recover My Shape and My Card and My Card Numbers
-      auto my_action = input["responses"][turn];
-      for (int i = 0; i < my_action.size(); i++) {
-        int card = my_action[i].asInt();
-        my_cards.erase(card);
-      }
-      rem[my_pos] -= my_action.size();
-    } else {
-      // Record last hand
-      for (int pos = 1; pos >= 0; --pos) {
-        if (history[pos].size() != 0) {
-          for (int i = 0; i < history[pos].size(); ++i) {
-            last_hand_cards.insert(history[pos][i].asInt());
-          }
-          last_hand_pos = (my_pos + 1 + pos) % 3;
-          break;
-        }
-      }
-    }
-  }
-
-  my_shape = card_to_shape(my_cards);
-}
-
-void output(vector<int> cards) {
-  Json::Value result, response(Json::arrayValue);
-  for (auto card : cards) {
-    response.append(card);
-  }
-  result["response"] = response;
-  result["debug"] = ELAPSED_SECS;
-  Json::FastWriter writer;
-  cout << writer.write(result) << endl;
+  return max_hand;
 }
 
 /*****************************************************************************/
 // Main Program: Get Input, Get Recent Game Status, Start Search and Output
 /*****************************************************************************/
+void output_all(int pos) {
+  ofstream dizhu_file;
+  ofstream xiajia_file;
+  ofstream menban_file;
+  dizhu_file.open("dizhu.dat", std::ios_base::app);
+  xiajia_file.open("xiajia.dat", std::ios_base::app);
+  menban_file.open("menban.dat", std::ios_base::app);
+  for (int i = 0; i < history.size(); ++i) {
+    int my_pos = (i) % 3;
+    bool win = false;
+    if (pos == 0 && my_pos == 0) {
+      win = true;
+    } else if (pos != 0 && my_pos != 0) {
+      win = true;
+    }
+    vector<int> output;
+    //for (int j = 0; j < 15; ++j) {
+    //    output.push_back(history[i-1][my_pos*15+j]);
+    //}
+    for (int j = 0; j < 15; ++j) {
+      output.push_back(history[i][my_pos*15+j]);
+    }
+    int prev_pos = (my_pos + 2) % 3;
+    int next_pos = (my_pos + 1) % 3;
+    for (int j = 0; j < 15; ++j) {
+      output.push_back(origin[prev_pos][j] - history[i][prev_pos*15+j]);
+    }
+    for (int j = 0; j < 15; ++j) {
+      output.push_back(origin[next_pos][j] - history[i][next_pos*15+j]);
+    }
+    int last_zero = -1;
+    int length = 0;
+    int length2 = 0;
+    int length3 = 0;
+    for (int j = 0; j < 13; ++j) {
+      if (output[j] == 0 || j == 12) {
+        if (j - 1 - last_zero >= 5) {
+          //cout << pos << ' ' << "j = " << j << ' ' << last_zero << endl;
+          if (length < j - 1 - last_zero) {
+            length = j - 1 - last_zero;
+          }
+        }
+        last_zero = j;
+      }
+    }
+    last_zero = -1;
+    for (int j = 0; j < 13; ++j) {
+      if (output[j] < 2 || j == 12) {
+        if (j - 1 - last_zero >= 3) {
+          if (length2 < j - 1 - last_zero) {
+            length2 = j - 1 - last_zero;
+          }
+        }
+        last_zero = j;
+      }
+    }
+    last_zero = -1;
+    for (int j = 0; j < 13; ++j) {
+      if (output[j] < 3 || j == 12) {
+        if (j - 1 - last_zero >= 2) {
+          if (length3 < j - 1 - last_zero) {
+            length3 = j - 1 - last_zero;
+          }
+        }
+        last_zero = j;
+      }
+    }
+    output.push_back(length);
+    output.push_back(length2);
+    output.push_back(length3);
+    int non_zero_num = 0;
+    int has_bomb = 0;
+    for (int j = 0; j < 15; ++j) {
+      if (output[j] != 0) {
+        ++non_zero_num;
+      }
+      if (output[j] == 4) {
+        ++has_bomb;
+      }
+    }
+    if (output[14] == 1 && output[13] == 1) {
+      ++has_bomb;
+    }
+
+    output.push_back(non_zero_num);
+    output.push_back(has_bomb);
+
+    int j = 14;
+    int control1 = 0;
+    int control2 = 0;
+    int control3 = 0;
+    for (; j >= 0; --j) {
+      if (history[i][prev_pos*15+j] > 0) {
+	break;
+      }
+      if (history[i][next_pos*15+j] > 0) {
+	break;
+      }
+      control1 += output[j];
+    }
+
+    for (j = 14; j >= 0; --j) {
+      if (history[i][prev_pos*15+j] + history[i][next_pos*15+j] >= 2) {
+	break;
+      }
+      control2 += output[j] >= 2 ? 2 : 0;
+    }
+    
+
+    for (j = 14; j >= 0; --j) {
+      if (history[i][prev_pos*15+j] + history[i][next_pos*15+j] >= 3) {
+	break;
+      }
+      control3 += output[j] >= 3 ? 3 : 0;
+    }
+
+    output.push_back(control1);
+    output.push_back(control2);
+    output.push_back(control3);
+
+    if (win) {
+      output.push_back(1);
+    } else {
+      output.push_back(0);
+    }
+    for (auto result : output) {
+      if (my_pos == 0) {
+        dizhu_file << result << " ";
+      } else if (my_pos == 1) {
+        xiajia_file << result << " ";
+      } else {
+        menban_file << result << " ";
+      }
+    }
+    if (my_pos == 0) {
+      dizhu_file << endl;
+    } else if (my_pos == 1) {
+      xiajia_file << endl;
+    } else {
+      menban_file << endl;
+    }
+  }
+  dizhu_file.close();
+  menban_file.close();
+  xiajia_file.close();
+}
+
+void output_shape() {
+  vector<int> status;
+  for (int j = 0; j < 3; ++j) {
+    for (int i = 0; i < 15; ++i) {
+      status.push_back(shape[j][i]);
+    }
+  }
+  for (int i = 0; i < 3; ++i) {
+    status.push_back(rem[i]);
+  }
+  history.push_back(status);
+}
+
+void random_start() {
+  history.clear();
+  public_cards.clear();
+  for (int i = 0; i < 3; ++i) {
+    for (int j = 0; j < 15; ++j) {
+      shape[i][j] = 0;
+      origin[i][j] = 0;
+    }
+  }
+  vector<int> cards;
+  rem[0] = 20;
+  rem[1] = 17;
+  rem[2] = 17;
+  for (int i = 0; i < 54; ++i) {
+    cards.push_back(i);
+  }
+  random_shuffle(cards.begin(), cards.end());
+  for (int i = 0; i < 20; ++i) {
+    shape[0][card_to_point(cards[i])]++;
+    origin[0][card_to_point(cards[i])]++;
+  }
+  for (int i = 20; i < 37; ++i) {
+    shape[1][card_to_point(cards[i])]++;
+    origin[1][card_to_point(cards[i])]++;
+  }
+  for (int i = 37; i < 54; ++i) {
+    shape[2][card_to_point(cards[i])]++;
+    origin[2][card_to_point(cards[i])]++;
+  }
+  output_shape();
+  
+}
+
 int main() {
   std::srand(unsigned(std::time(0)));
-  input();
-  auto last_hand_shape = card_to_shape(last_hand_cards);
-  auto last_hand = shape_to_hand(last_hand_shape);
-
-  /** Below for debug **/
-  //cout << my_pos << endl;
-  //for (int i  = 0; i < 15; ++i) {
-  //    cout << my_shape[i] << ' ';
-  //}
-  //cout << endl;
-  //for (int i  = 0; i < 15; ++i) {
-  //    cout << remain_shape[i] << ' ';
-  //}
-  //cout << endl;
-  //for (int i  = 0; i < 3; ++i) {
-  //    cout << rem[i] << ' ';
-  //}
-  //cout << endl;
-  //for (auto card : last_hand_cards) {
-  //    cout << card << ' ';
-  //}
-  //cout << endl;
-  /** Above for debug **/
-
-  output(mc_play(last_hand));
+  for (int k = 0; k < 1000; ++k) {
+    cout << k << endl;
+    random_start();
+    Hand prev_hand = Hand();
+    int position = 0;
+    int pass = 0;
+    while(rem[0] != 0 && rem[1] != 0 && rem[2] != 0) {
+      Hand hand = one_hand(position, prev_hand);
+      redo(position, hand);
+      if (hand.length == 0) {
+        pass += 1;
+      } else {
+        prev_hand = hand;
+        pass = 0;
+      }
+      if (pass == 2) {
+        prev_hand = Hand();
+      }
+      //cout << position << " Go ";
+      //hand.show();
+      //cout << endl;
+      //cout << rem[0] << ' ' << rem[1] << ' ' << rem[2] << endl;
+      position = (position + 1) % 3;
+      output_shape();
+    }
+    output_shape();
+    int vic_pos;
+    if(rem[0] == 0) {
+      vic_pos = 0;
+    } else if (rem[1] == 0) {
+      vic_pos = 1;
+    } else if (rem[2] == 0) {
+      vic_pos = 2;
+    }
+    output_all(vic_pos);
+  }
 }
+
