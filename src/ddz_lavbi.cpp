@@ -15,7 +15,7 @@ using namespace std;
 /*****************************************************************************/
 // Global Data
 /*****************************************************************************/
-int MC_GAME_NUMBERS = 3630;
+int MC_GAME_NUMBERS = 5000;
 double ELAPSED_SECS = -1.;
 set<int> my_cards;
 set<int> last_hand_cards;
@@ -587,9 +587,6 @@ void undo(Hand hand) {
 Hand mc_step(int pos, Hand prev, int random_number) {
   auto max_hand = Hand();
   double max_val = -10000.;
-  if (prev.is_pass()) {
-    random_number = 5;
-  }
   list<pair<Hand, double>> hands;
   /** Search Strings, 3+2 and 3+1 **/
   if (prev.length == 0 || prev.length * prev.width >= 3) {
@@ -747,13 +744,12 @@ int mc_run(Hand prev_hand) {
     int random_number = 1;
 
     /** Below should be toggled if we want add random factors **/
-    if (rem[0] + rem[1] + rem[2] <= 25) {
-        random_number = 2;
-    } else if (rem[0] + rem[1] + rem[2] <= 15) {
-        random_number = 3;
-    } else if (rem[0] + rem[1] + rem[2] <= 10) {
-        random_number = 5;
-    }
+    //if (rem[0] + rem[1] + rem[2] <= 25) {
+    //    random_number = 3;
+    //}
+    //if (rem[0] + rem[1] + rem[2] <= 15) {
+    //    random_number = 5;
+    //}
 
     Hand hand = mc_step(position, prev_hand, random_number);
     if (hand.length == 0) {
@@ -951,7 +947,7 @@ vector<int> mc_play(Hand prev) {
         }
         clock_t current_time = clock();
         ELAPSED_SECS = double (current_time - start_time) / CLOCKS_PER_SEC;
-        if (ELAPSED_SECS > 0.91) {
+        if (ELAPSED_SECS > 0.9) {
           int max_win = -0x7FFFFFFF;
           list<pair<Hand, int>>::iterator best_hand;
           for (auto it = hands.begin(); it != hands.end(); ++it) {
