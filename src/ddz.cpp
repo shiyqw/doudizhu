@@ -271,7 +271,7 @@ double mc_evaluate(int pos) {
 
   double value = 0.;
   for (int i = 0; i < features.size(); ++i) {
-    value += features[i] * weight[my_pos][i];
+    value += features[i] * weight[pos][i];
   }
 
   /** output features (for debug) **/
@@ -520,10 +520,10 @@ void mc_init(vector<int> cards) {
       mc_shape[(my_pos+i)%3][j] = 0;
     }
   }
-  for(int i = 0; i < rem[(my_pos+1)%3]; ++i) {
+  for (int i = 0; i < rem[(my_pos+1)%3]; ++i) {
     mc_shape[(my_pos+1)%3][cards[i]]++;
   }
-  for(int i = 0; i < rem[(my_pos+2)%3]; ++i) {
+  for (int i = 0; i < rem[(my_pos+2)%3]; ++i) {
     mc_shape[(my_pos+2)%3][cards[i+rem[(my_pos+1)%3]]]++;
   }
 }
@@ -619,7 +619,7 @@ Hand mc_step(int pos, Hand prev, int random_number) {
               carriables.push_back(carriable);
             }
 
-            for(auto carry_width = 1; carry_width < width; ++carry_width) {
+            for (auto carry_width = 1; carry_width < width; ++carry_width) {
               auto carriable = carriables[carry_width-1];
               if (carriable.size() < (width-2)*l) {
                 continue;
@@ -823,7 +823,7 @@ vector<int> mc_play(Hand prev) {
             carriables.push_back(carriable);
           }
 
-          for(auto carry_width = 1; carry_width < width; ++carry_width) {
+          for (auto carry_width = 1; carry_width < width; ++carry_width) {
             auto carriable = carriables[carry_width-1];
             if (carriable.size() < (width-2)*l) {
                 continue;
