@@ -785,25 +785,54 @@ Hand one_hand(int pos, Hand prev) {
     hands.push_back(make_pair(Hand(), 0));
   }
 
-  if (hands.size() == 0) {
-    max_hand = Hand();
-  } else if (hands.size() == 1) {
+  // Optimizaion
+  int k = hands.size();
+  vector<int> n;
+  double logk = 0.5;
+  for (int i = 2; i <= k; ++i) {
+      logk += 1.0 / (double) i;
+  }
+  n.push_back(0);
+  for (int i = 1; i < k; ++i) {
+    int nk = (int) ceil(1.0 / logk * ((double) (MC_GAME_NUMBERS-k)) / ((double) (k+1-i)));
+    n.push_back(nk);
+  }
+
+  if (hands.size() == 1) {
+    // Play itself
+    int game_number = MC_GAME_NUMBERS;
+    for (int j = 0; j < game_number; ++j) {
+      auto cards = mc_shuffle(pos);
+      for (auto it = hands.begin(); it != hands.end(); ++it) {
+        auto hand = it->first;
+        redo(pos, hand);
+        mc_init(pos, cards);
+        mc_calc_detail(pos, hand);
+        int win_pos = mc_run(pos, hand);
+        if (pos == 0) {
+          int delta = 2*score[0] - (score[1]+score[2]);
+          it->second += delta;
+          if (win_pos == 0) {
+            it->second += 400;
+          } else {
+            it->second -= 400;
+          }
+        } else if (pos != 0) {
+          int delta = (score[1]+score[2]) - 2*score[0];
+          it->second += delta;
+          if (win_pos == 0) {
+            it->second -= 400;
+          } else {
+            it->second += 400;
+          }
+        }
+        undo(pos, hand);
+      }
+    }
     max_hand = hands.front().first;
+    double win_rate = (double) hands.front().second / 200. / (double) MC_GAME_NUMBERS;
+    real_time_win_rate.push_back(win_rate);
   } else {
-
-    // Optimizaion
-    int k = hands.size();
-    vector<int> n;
-    double logk = 0.5;
-    for (int i = 2; i <= k; ++i) {
-        logk += 1.0 / (double) i;
-    }
-    n.push_back(0);
-    for (int i = 1; i < k; ++i) {
-      int nk = (int) ceil(1.0 / logk * ((double) (MC_GAME_NUMBERS-k)) / ((double) (k+1-i)));
-      n.push_back(nk);
-    }
-
     for (int i = 1; i <= k-1; ++i) {
       int game_number = n[i]-n[i-1];
       for (int j = 0; j < game_number; ++j) {
@@ -867,12 +896,15 @@ Hand one_hand(int pos, Hand prev) {
 
       //cout << "used seconds:" << ELAPSED_SECS << endl;
 
-      hands.erase(worst_hand);
+      if (hands.size() > 1) {
+        hands.erase(worst_hand);
+      }
     }
-    max_hand = hands.front().first;
-    real_time_win_rate.push_back(hands.front().second);
-  }
 
+    max_hand = hands.front().first;
+    double win_rate = (double) hands.front().second / 200. / (double) n[k-1];
+    real_time_win_rate.push_back(win_rate);
+  }
   return max_hand;
 }
 
@@ -972,25 +1004,24 @@ void output_all(int pos) {
     int control3 = 0;
     for (; j >= 0; --j) {
       if (history[i][prev_pos*15+j] > 0) {
-	break;
+        break;
       }
       if (history[i][next_pos*15+j] > 0) {
-	break;
+        break;
       }
       control1 += output[j];
     }
 
     for (j = 14; j >= 0; --j) {
       if (history[i][prev_pos*15+j] + history[i][next_pos*15+j] >= 2) {
-	break;
+        break;
       }
       control2 += output[j] >= 2 ? 2 : 0;
     }
-    
 
     for (j = 14; j >= 0; --j) {
       if (history[i][prev_pos*15+j] + history[i][next_pos*15+j] >= 3) {
-	break;
+        break;
       }
       control3 += output[j] >= 3 ? 3 : 0;
     }
@@ -1014,11 +1045,11 @@ void output_all(int pos) {
       }
     }
     if (my_pos == 0) {
-      dizhu_file << endl;
+      dizhu_file << real_time_win_rate[i] << endl;
     } else if (my_pos == 1) {
-      xiajia_file << endl;
+      xiajia_file << real_time_win_rate[i] << endl;
     } else {
-      menban_file << endl;
+      menban_file << real_time_win_rate[i] << endl;
     }
   }
   dizhu_file.close();
@@ -1033,14 +1064,12 @@ void output_shape() {
       status.push_back(shape[j][i]);
     }
   }
-  for (int i = 0; i < 3; ++i) {
-    status.push_back(rem[i]);
-  }
   history.push_back(status);
 }
 
 void random_start() {
   history.clear();
+  real_time_win_rate.clear();
   public_cards.clear();
   for (int i = 0; i < 3; ++i) {
     for (int j = 0; j < 15; ++j) {
@@ -1068,8 +1097,6 @@ void random_start() {
     shape[2][card_to_point(cards[i])]++;
     origin[2][card_to_point(cards[i])]++;
   }
-  output_shape();
-  
 }
 
 int main() {
@@ -1099,7 +1126,6 @@ int main() {
       position = (position + 1) % 3;
       output_shape();
     }
-    output_shape();
     int vic_pos;
     if(rem[0] == 0) {
       vic_pos = 0;
