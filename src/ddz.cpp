@@ -529,7 +529,10 @@ void mc_init(vector<int> cards) {
 }
 
 int mc_get_length_with_width(int pos, int left, int width) {
-  int right_limit = width >= 3 ? 13 : 12;
+  int right_limit = 12;
+  if (left == 13) {
+    right_limit = 13;
+  }
   for (int i = left; i <= right_limit; ++i) {
     if (mc_shape[pos][i] < width || i == right_limit) {
       return (i-left);
@@ -542,7 +545,10 @@ int mc_get_length_with_width(int pos, int left, int width) {
 // Methods for Hands Redoing and Undoing for Searching Best Hand
 /*****************************************************************************/
 int get_length_with_width(int left, int width) {
-  int right_limit = width >= 3 ? 13 : 12;
+  int right_limit = 12;
+  if (left == 13) {
+    right_limit = 13;
+  }
   for (int i = left; i <= right_limit; ++i) {
     if (my_shape[i] < width || i == right_limit) {
       return (i-left);
@@ -609,9 +615,6 @@ Hand mc_step(int pos, Hand prev, int random_number) {
                   continue;
                 }
                 if (mc_shape[pos][i] < carry_width) {
-                  continue;
-                }
-                if (i == 12 && width == 4) {
                   continue;
                 }
                 carriable.push_back(i);
@@ -813,9 +816,6 @@ vector<int> mc_play(Hand prev) {
                 continue;
               }
               if (my_shape[i] < carry_width) {
-                continue;
-              }
-              if (i == 12 && width == 4) {
                 continue;
               }
               carriable.push_back(i);
