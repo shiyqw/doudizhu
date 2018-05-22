@@ -1,32 +1,17 @@
 %A=importdata('greedy/v2/dizhu.dat');
 %A=importdata('greedy/v2/xiajia.dat');
 
-% A=[importdata('train/1/dizhu.dat');
-%     importdata('train/2/dizhu.dat');
-%     importdata('train/3/dizhu.dat');
-%     importdata('train/4/dizhu.dat');
-%     importdata('train/5/dizhu.dat');
-%     importdata('train/6/dizhu.dat');
-%     importdata('train/7/dizhu.dat');
-%     importdata('train/8/dizhu.dat')];
 
-A=[importdata('train/1/xiajia.dat');
-    importdata('train/2/xiajia.dat');
-    importdata('train/3/xiajia.dat');
-    importdata('train/4/xiajia.dat');
-    importdata('train/5/xiajia.dat');
-    importdata('train/6/xiajia.dat');
-    importdata('train/7/xiajia.dat');
-    importdata('train/8/xiajia.dat')];
-% 
-% A=[importdata('train/1/menban.dat');
-%     importdata('train/2/menban.dat');
-%     importdata('train/3/menban.dat');
-%     importdata('train/4/menban.dat');
-%     importdata('train/5/menban.dat');
-%     importdata('train/6/menban.dat');
-%     importdata('train/7/menban.dat');
-%     importdata('train/8/menban.dat')];
+
+
+A=[importdata('train/1/menban.dat');
+    importdata('train/2/menban.dat');
+    importdata('train/3/menban.dat');
+    importdata('train/4/menban.dat');
+    importdata('train/5/menban.dat');
+    importdata('train/6/menban.dat');
+    importdata('train/7/menban.dat');
+    importdata('train/8/menban.dat')];
 
 
 n = size(A,1);
@@ -37,7 +22,7 @@ y = A(:,d+2);
 X = feature(X);
 d = size(X,2);
 
-R = 2.3;% max
+R = 2.30;% max
 y = y/ (2*R) + 0.5;
 % 
 n_train = floor(n*0.8);
@@ -60,8 +45,8 @@ L1_test = sum(abs(y_pred_test - y_test)) /n_test
 bin_loss_test = sum(abs(y_pred_bin_test - y_bin_test)) / n_test
 
 %csvwrite('weight_dizhu.csv',w);
-csvwrite('weight_xiajia.csv',w);
-%csvwrite('weight_menban.csv',w);
+%csvwrite('weight_xiajia.csv',w);
+csvwrite('weight_menban.csv',w);
 
 % remain_train = min(X_train(:,15:17),[],2);
 % 
