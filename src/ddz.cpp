@@ -69,14 +69,14 @@ struct Hand {
     return false;
   }
 
-  void show() {
-      stringstream buffer;
-      buffer << point << ":" << width << "x" << length;
-      for (auto card : carry) {
-          buffer << " " << card;
-      }
-      cout << setw(20) << left << buffer.str();
-  }
+  //void show() {
+  //    stringstream buffer;
+  //    buffer << point << ":" << width << "x" << length;
+  //    for (auto card : carry) {
+  //        buffer << " " << card;
+  //    }
+  //    cout << setw(20) << left << buffer.str();
+  //}
 
 };
 
@@ -733,13 +733,13 @@ int mc_run(Hand prev_hand) {
   cout << "start run" << endl;
   prev_hand.show();
   cout << endl;
-  for (int i = 0; i < 3; ++i) {
-      for (int j = 0; j < 15; ++j) {
-          cout << mc_shape[i][j] << " ";
-      }
-      cout << endl;
-  }
-  cout << "********************" << endl;
+  //for (int i = 0; i < 3; ++i) {
+  //    for (int j = 0; j < 15; ++j) {
+  //        cout << mc_shape[i][j] << " ";
+  //    }
+  //    cout << endl;
+  //}
+  //cout << "********************" << endl;
 
   int position = (my_pos + 1) % 3;
   int pass = 0;
@@ -766,13 +766,13 @@ int mc_run(Hand prev_hand) {
     }
     position = (position + 1) % 3;
 
-    for (int i = 0; i < 3; ++i) {
-        for (int j = 0; j < 15; ++j) {
-          cout << mc_shape[i][j] << " ";
-        }
-        cout << endl;
-    }
-    cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~" << endl;
+    //for (int i = 0; i < 3; ++i) {
+    //    for (int j = 0; j < 15; ++j) {
+    //      cout << mc_shape[i][j] << " ";
+    //    }
+    //    cout << endl;
+    //}
+    //cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~" << endl;
 
   }
   int vic_pos;
@@ -947,7 +947,7 @@ vector<int> mc_play(Hand prev) {
         }
         clock_t current_time = clock();
         ELAPSED_SECS = double (current_time - start_time) / CLOCKS_PER_SEC;
-        if (ELAPSED_SECS > 9.9) {
+        if (ELAPSED_SECS > 0.9) {
           int max_win = -0x7FFFFFFF;
           list<pair<Hand, int>>::iterator best_hand;
           for (auto it = hands.begin(); it != hands.end(); ++it) {
@@ -964,11 +964,11 @@ vector<int> mc_play(Hand prev) {
       int min_win = 0x7FFFFFFF;
       list<pair<Hand, int>>::iterator worst_hand, it;
 
-      for (auto hand_with_win : hands) {
-          hand_with_win.first.show();
-          cout << " win num " << hand_with_win.second / 200. / (double) n[i] << endl;
-      }
-      cout << "-------------------------------" << endl;
+      //for (auto hand_with_win : hands) {
+      //    hand_with_win.first.show();
+      //    cout << " win num " << hand_with_win.second / 200. / (double) n[i] << endl;
+      //}
+      //cout << "-------------------------------" << endl;
 
       for (auto it = hands.begin(); it != hands.end(); ++it) {
         if (it->second < min_win) {
