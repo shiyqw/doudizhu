@@ -729,10 +729,10 @@ Hand mc_step(int pos, Hand prev, int random_number) {
 /*****************************************************************************/
 int mc_run(Hand prev_hand) {
 
-  cout << endl;
-  cout << "start run" << endl;
-  prev_hand.show();
-  cout << endl;
+  //cout << endl;
+  //cout << "start run" << endl;
+  //prev_hand.show();
+  //cout << endl;
   //for (int i = 0; i < 3; ++i) {
   //    for (int j = 0; j < 15; ++j) {
   //        cout << mc_shape[i][j] << " ";
