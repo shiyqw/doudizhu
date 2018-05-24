@@ -799,7 +799,7 @@ Hand mc_step(int pos, Hand prev, int random_number) {
 /*****************************************************************************/
 // Monte Carlo Process (One Game)
 /*****************************************************************************/
-int mc_run(Hand prev_hand) {
+int mc_run(Hand prev_hand, Hand prev_prev_hand) {
 
   //cout << endl;
   //cout << "start run" << endl;
@@ -815,6 +815,11 @@ int mc_run(Hand prev_hand) {
 
   int position = (my_pos + 1) % 3;
   int pass = 0;
+  if (prev_hand.is_pass()) {
+    prev_hand = prev_prev_hand;
+    pass += 1;
+  }
+
   while(mc_rem[0] != 0 && mc_rem[1] != 0 && mc_rem[2] != 0) {
     int random_number = 1;
 
@@ -1006,7 +1011,7 @@ vector<int> mc_play(Hand prev) {
           redo(hand);
           mc_init(cards);
           mc_calc_detail(my_pos, hand);
-          int win_pos = mc_run(hand);
+          int win_pos = mc_run(hand, prev);
           if (my_pos == 0) {
             int delta = 2*score[0] - (score[1]+score[2]);
             it->second += delta;
