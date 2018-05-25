@@ -20,6 +20,7 @@ double ELAPSED_SECS = -1.;
 set<int> my_cards;
 set<int> last_hand_cards;
 set<int> public_cards;
+set<int> remain_cards;
 vector<int> last_hand_shape;
 vector<int> my_shape = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
 int remain_shape[15] = {4,4,4,4,4,4,4,4,4,4,4,4,4,1,1};
@@ -29,6 +30,10 @@ int mc_shape[3][15];
 int my_pos;
 int last_hand_pos = -1;
 int score[3];
+vector<int> prev_predict, next_predict;
+vector<vector<int> > prev_history, next_history;
+clock_t start_time;
+bool enemy_is_ordered = true;
 
 /*****************************************************************************/
 // Data Structure for Hand Type
@@ -504,6 +509,7 @@ void mc_undo(int pos, Hand hand) {
   }
 }
 
+/**
 vector<int> mc_shuffle() {
   vector<int> cards;
   if (my_pos != 0) {
@@ -533,9 +539,46 @@ vector<int> mc_shuffle() {
   }
   return cards;
 }
+**/
 
+void mc_shuffle(vector<int> & cards) {
+  int prev_fixed_card_num = prev_predict.size();
+  int next_fixed_card_num = next_predict.size();
+  if (my_pos == 1) {
+    prev_fixed_card_num += public_cards.size();
+  } else if (my_pos == 2) {
+    next_fixed_card_num += public_cards.size();
+  }
+  auto start_pos = cards.begin() + next_fixed_card_num;
+  auto end_pos = cards.end() - prev_fixed_card_num;
+  random_shuffle(start_pos, end_pos);
+}
 
-void mc_init(vector<int> cards) {
+vector<int> mc_distribute() {
+  vector<int> cards;
+  for (auto card : next_predict) {
+    cards.push_back(card_to_point(card));
+  }
+  if (my_pos == 2) {
+    for (auto card : public_cards) {
+      cards.push_back(card_to_point(card));
+    }
+  }
+  for (auto card : remain_cards) {
+    cards.push_back(card_to_point(card));
+  }
+  for (auto card : prev_predict) {
+    cards.push_back(card_to_point(card));
+  }
+  if (my_pos == 1) {
+    for (auto card : public_cards) {
+      cards.push_back(card_to_point(card));
+    }
+  }
+  return cards;
+}
+
+void mc_init(const vector<int> & cards) {
   for (int i = 0; i < 3; ++i) {
     mc_rem[i] = rem[i];
     score[i] = 0;
@@ -756,7 +799,7 @@ Hand mc_step(int pos, Hand prev, int random_number) {
 /*****************************************************************************/
 // Monte Carlo Process (One Game)
 /*****************************************************************************/
-int mc_run(Hand prev_hand) {
+int mc_run(Hand prev_hand, Hand prev_prev_hand) {
 
   //cout << endl;
   //cout << "start run" << endl;
@@ -772,6 +815,11 @@ int mc_run(Hand prev_hand) {
 
   int position = (my_pos + 1) % 3;
   int pass = 0;
+  if (prev_hand.is_pass()) {
+    prev_hand = prev_prev_hand;
+    pass += 1;
+  }
+
   while(mc_rem[0] != 0 && mc_rem[1] != 0 && mc_rem[2] != 0) {
     int random_number = 1;
 
@@ -945,16 +993,25 @@ vector<int> mc_play(Hand prev) {
       n.push_back(nk);
     }
 
+    auto cards = mc_distribute();
     for (int i = 1; i <= k-1; ++i) {
       int game_number = n[i]-n[i-1];
       for (int j = 0; j < game_number; ++j) {
-        auto cards = mc_shuffle();
+        /** Init card distribution with predict **/
+        mc_shuffle(cards);
+
+        //cout << "shuffle result:" << endl;
+        //for (auto card : cards) {
+        //  cout << card << ',';
+        //}
+        //cout << endl;
+
         for (auto it = hands.begin(); it != hands.end(); ++it) {
           auto hand = it->first;
           redo(hand);
           mc_init(cards);
           mc_calc_detail(my_pos, hand);
-          int win_pos = mc_run(hand);
+          int win_pos = mc_run(hand, prev);
           if (my_pos == 0) {
             int delta = 2*score[0] - (score[1]+score[2]);
             it->second += delta;
@@ -1026,6 +1083,15 @@ void input() {
   Json::Reader reader;
   reader.parse(line, input);
 
+  // Init for predict
+  prev_history = vector<vector<int>>(15, vector<int>());
+  next_history = vector<vector<int>>(15, vector<int>());
+  prev_predict = vector<int>();
+  next_predict = vector<int>();
+  for (int i = 0; i < 54; ++i) {
+    remain_cards.insert(i);
+  }
+
   // First request
   {
     auto first_request = input["requests"][0u]; 
@@ -1036,6 +1102,7 @@ void input() {
       int card = own[i].asInt();
       my_cards.insert(card);
       --remain_shape[card_to_point(card)];
+      remain_cards.erase(card);
     }
     // Get my position
     if (first_history[0u].size() == 0) {
@@ -1067,6 +1134,13 @@ void input() {
         if (public_cards.count(card) > 0) {
           public_cards.erase(card);
         }
+        if (pos == 1) {
+          // previous player
+          prev_history[card_to_point(card)].push_back(card%4);
+        } else {
+          next_history[card_to_point(card)].push_back(card%4);
+        }
+        remain_cards.erase(card);
       }
       rem[player_position] -= player_action.size();
     }
@@ -1093,6 +1167,11 @@ void input() {
   }
 
   my_shape = card_to_shape(my_cards);
+  if (my_pos != 0) {
+    for (auto card : public_cards) {
+      remain_cards.erase(card);
+    }
+  }
 }
 
 void output(vector<int> cards) {
@@ -1107,11 +1186,236 @@ void output(vector<int> cards) {
 }
 
 /*****************************************************************************/
+// Predict distribution
+/*****************************************************************************/
+void get_predict() {
+  if (my_pos == 0) {
+    for (auto cards : prev_history) {
+      int last_card = -1;
+      for (auto card : cards) {
+        if (card > last_card) {
+          last_card = card;
+        } else {
+          enemy_is_ordered = false;
+          break;
+        }
+      }
+    }
+    if (enemy_is_ordered) {
+      for (auto cards : next_history) {
+        int last_card = -1;
+        for (auto card : cards) {
+          if (card > last_card) {
+            last_card = card;
+          } else {
+            enemy_is_ordered = false;
+            break;
+          }
+        }
+      }
+    }
+    if (!enemy_is_ordered) {
+      return;
+    }
+    for (int i = 0; i < 13; ++i) {
+      auto cards = prev_history[i];
+      int last_card = -1;
+      for (auto card : cards) {
+        if (card - last_card > 1) {
+          for (int j = 1; j < card - last_card; ++j) {
+            int skipped_card = 4*i + last_card + j;
+            if (remain_cards.count(skipped_card) == 1) {
+              next_predict.push_back(skipped_card);
+              remain_cards.erase(skipped_card);
+            }
+          }
+          last_card = card;
+        }
+      }
+    }
+    for (int i = 0; i < 13; ++i) {
+      auto cards = next_history[i];
+      int last_card = -1;
+      for (auto card : cards) {
+        if (card - last_card > 1) {
+          for (int j = 1; j < card - last_card; ++j) {
+            int skipped_card = 4*i + last_card + j;
+            if (remain_cards.count(skipped_card) == 1) {
+              prev_predict.push_back(skipped_card);
+              remain_cards.erase(skipped_card);
+            }
+          }
+          last_card = card;
+        }
+      }
+    }
+  } else if (my_pos == 1) {
+    // prev is dizhu, next is menban
+    for (auto cards : prev_history) {
+      int last_card = -1;
+      for (auto card : cards) {
+        if (card > last_card) {
+          last_card = card;
+        } else {
+          enemy_is_ordered = false;
+          break;
+        }
+      }
+    }
+    if (enemy_is_ordered) {
+      for (auto cards : next_history) {
+        int last_card = -1;
+        for (auto card : cards) {
+          if (card > last_card) {
+            last_card = card;
+          } else {
+            enemy_is_ordered = false;
+            break;
+          }
+        }
+      }
+    }
+    if (!enemy_is_ordered) {
+      return;
+    }
+    for (int i = 0; i < 13; ++i) {
+      auto cards = prev_history[i];
+      int last_card = -1;
+      for (auto card : cards) {
+        if (card - last_card > 1) {
+          for (int j = 1; j < card - last_card; ++j) {
+            int skipped_card = 4*i + last_card + j;
+            if (remain_cards.count(skipped_card) == 1) {
+              next_predict.push_back(skipped_card);
+              remain_cards.erase(skipped_card);
+            }
+          }
+          last_card = card;
+        }
+      }
+    }
+    for (int i = 0; i < 13; ++i) {
+      auto cards = next_history[i];
+      int last_card = -1;
+      for (auto card : cards) {
+        if (card - last_card > 1) {
+          for (int j = 1; j < card - last_card; ++j) {
+            int skipped_card = 4*i + last_card + j;
+            if (remain_cards.count(skipped_card) == 1) {
+              prev_predict.push_back(skipped_card);
+              remain_cards.erase(skipped_card);
+            }
+          }
+          last_card = card;
+        }
+      }
+    }
+  } else {
+    // prev is xiajia, next is dizhu
+    for (auto cards : prev_history) {
+      int last_card = -1;
+      for (auto card : cards) {
+        if (card > last_card) {
+          last_card = card;
+        } else {
+          enemy_is_ordered = false;
+          break;
+        }
+      }
+    }
+    if (enemy_is_ordered) {
+      for (auto cards : next_history) {
+        int last_card = -1;
+        for (auto card : cards) {
+          if (card > last_card) {
+            last_card = card;
+          } else {
+            enemy_is_ordered = false;
+            break;
+          }
+        }
+      }
+    }
+    if (!enemy_is_ordered) {
+      return;
+    }
+    for (int i = 0; i < 13; ++i) {
+      auto cards = prev_history[i];
+      int last_card = -1;
+      for (auto card : cards) {
+        if (card - last_card > 1) {
+          for (int j = 1; j < card - last_card; ++j) {
+            int skipped_card = 4*i + last_card + j;
+            if (remain_cards.count(skipped_card) == 1) {
+              next_predict.push_back(skipped_card);
+              remain_cards.erase(skipped_card);
+            }
+          }
+          last_card = card;
+        }
+      }
+    }
+    for (int i = 0; i < 13; ++i) {
+      auto cards = next_history[i];
+      int last_card = -1;
+      for (auto card : cards) {
+        if (card - last_card > 1) {
+          for (int j = 1; j < card - last_card; ++j) {
+            int skipped_card = 4*i + last_card + j;
+            if (remain_cards.count(skipped_card) == 1) {
+              prev_predict.push_back(skipped_card);
+              remain_cards.erase(skipped_card);
+            }
+          }
+          last_card = card;
+        }
+      }
+    }
+  }
+}
+
+/*****************************************************************************/
 // Main Program: Get Input, Get Recent Game Status, Start Search and Output
 /*****************************************************************************/
 int main() {
   std::srand(unsigned(std::time(0)));
   input();
+  get_predict();
+
+  /** Below for debug **/
+  //cout << "prev:";
+  //for (int i = 0; i < 15; ++i) {
+  //  for (auto card : prev_history[i]) {
+  //    cout << card << ' ';
+  //  }
+  //  cout << "|";
+  //}
+  //cout << endl;
+  //cout << "next:";
+  //for (int i = 0; i < 15; ++i) {
+  //  for (auto card : next_history[i]) {
+  //    cout << card << ' ';
+  //  }
+  //  cout << "|";
+  //}
+  //cout << endl;
+  //cout << "rem:";
+  //for (auto card : remain_cards) {
+  //  cout << card << ' ';
+  //}
+  //cout << endl;
+  //cout << "prev pred:";
+  //for (auto card : prev_predict) {
+  //  cout << card << ' ';
+  //}
+  //cout << endl;
+  //cout << "next pred:";
+  //for (auto card : next_predict) {
+  //  cout << card << ' ';
+  //}
+  //cout << endl;
+  /** Above for debug **/
+
   auto last_hand_shape = card_to_shape(last_hand_cards);
   auto last_hand = shape_to_hand(last_hand_shape);
 

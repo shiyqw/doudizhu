@@ -613,7 +613,7 @@ Hand mc_step(int pos, Hand prev, int random_number) {
 /*****************************************************************************/
 // Monte Carlo Process (One Game)
 /*****************************************************************************/
-int mc_run(int pos, Hand prev_hand) {
+int mc_run(int pos, Hand prev_hand, Hand prev_prev_hand, int pass_num) {
 
   //cout << endl;
   //cout << "start run" << endl;
@@ -629,6 +629,13 @@ int mc_run(int pos, Hand prev_hand) {
 
   int position = (pos + 1) % 3;
   int pass = 0;
+  if (prev_hand.is_pass()) {
+    prev_hand = prev_prev_hand;
+    pass += 1;
+    if (pass_num == 1) {
+      prev_hand = Hand();
+    }
+  }
   while(mc_rem[0] != 0 && mc_rem[1] != 0 && mc_rem[2] != 0) {
     int random_number = 1;
 
@@ -676,7 +683,7 @@ int mc_run(int pos, Hand prev_hand) {
 /*****************************************************************************/
 // Search Process: Start Monte Carlo Process for Each Hand and Choose the Best
 /*****************************************************************************/
-Hand one_hand(int pos, Hand prev) {
+Hand one_hand(int pos, Hand prev, int pass) {
   clock_t start_time = clock();
   auto max_hand = Hand();
   list<pair<Hand, int>> hands;
@@ -808,7 +815,7 @@ Hand one_hand(int pos, Hand prev) {
         redo(pos, hand);
         mc_init(pos, cards);
         mc_calc_detail(pos, hand);
-        int win_pos = mc_run(pos, hand);
+        int win_pos = mc_run(pos, hand, prev, pass);
         if (pos == 0) {
           int delta = 2*score[0] - (score[1]+score[2]);
           it->second += delta;
@@ -842,7 +849,7 @@ Hand one_hand(int pos, Hand prev) {
           redo(pos, hand);
           mc_init(pos, cards);
           mc_calc_detail(pos, hand);
-          int win_pos = mc_run(pos, hand);
+          int win_pos = mc_run(pos, hand, prev, pass);
           if (pos == 0) {
             int delta = 2*score[0] - (score[1]+score[2]);
             it->second += delta;
@@ -1108,7 +1115,7 @@ int main() {
     int position = 0;
     int pass = 0;
     while(rem[0] != 0 && rem[1] != 0 && rem[2] != 0) {
-      Hand hand = one_hand(position, prev_hand);
+      Hand hand = one_hand(position, prev_hand, pass);
       redo(position, hand);
       if (hand.length == 0) {
         pass += 1;
