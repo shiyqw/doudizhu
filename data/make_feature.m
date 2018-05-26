@@ -11,8 +11,8 @@ d = size(X,2);
 % triplets = sum((X(:,1:13)==3),2);
 %feat = [X pairs triplets inv_remain ];
 %feat = [X inv_remain ];
-feat = [X];
-% feat = [X(:,1:15), X(:, 16:30) + X(:, 31:45), X(:, 46:53)];
+%feat = [X];
+feat = [X(:,1:15), X(:, 46:53)];
 % feat = [feat, feat.^2];
 % for i = 1:15
 %     feat = [feat, feat(:,i).*feat(:, i+15)];
