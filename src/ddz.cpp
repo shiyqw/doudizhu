@@ -822,7 +822,7 @@ Hand mc_step(int pos, const Hand & prev, int random_number) {
   }
 
   /** Search Bomb **/
-  if (rem[0] <= 6 || rem[1] <= 6 || rem[2] <= 6) {
+  if (mc_rem[0] <= 6 || mc_rem[1] <= 6 || mc_rem[2] <= 6) {
     for (int i = 0; i < 13; ++i) {
       if (mc_shape[pos][i] == 4) {
         Hand bomb_hand = Hand(i, 4, 1);
