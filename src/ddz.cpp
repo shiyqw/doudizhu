@@ -14,7 +14,6 @@
 #include "jsoncpp/json.h"
 
 using namespace std;
-bool local_debug = false;
 
 /*****************************************************************************/
 // Global Data
@@ -68,10 +67,10 @@ struct Hand {
   void clear_carry() {
     carry.clear();
   }
-  bool is_pass() const {
+  bool is_pass() {
     return length == 0;
   }
-  bool is_bomb() const {
+  bool is_bomb() {
     if (width == 4 && length == 1 && carry.empty()) {
       return true;
     }
@@ -81,13 +80,13 @@ struct Hand {
     return false;
   }
 
-  int card_num() const {
+  int card_num() {
     return width*length+carry.size();
   }
 
-  void show() const {
+  void show() {
       stringstream buffer;
-      buffer << point << ":" << width << "x" << length;
+      buffer<<point << ":" << width << "x" << length;
       for (auto card : carry) {
           buffer << " " << card;
       }
@@ -102,7 +101,7 @@ bool my_comp(const pair<Hand, double> & a, const pair<Hand, double> & b) {
   return a.second < b.second;
 }
 
-bool check_valid(const Hand & hand, const Hand & prev) {
+bool check_valid(Hand hand, Hand prev) {
   // special cases
   if (prev.is_pass()) {
     if (hand.is_pass()) {
@@ -138,80 +137,79 @@ bool check_valid(const Hand & hand, const Hand & prev) {
 // Weights and Calculations for Game Evaluation
 /*****************************************************************************/
 double weight[3][23] = { {
-  2.0372,
-  0.063408,
-  0.096561,
-  0.067402,
-  0.051712,
-  0.02431,
-  0.010008,
-  -0.049698,
-  -0.034353,
-  -0.022824,
-  -0.023354,
-  0.055415,
-  0.18867,
-  0.79156,
-  0.73188,
-  0.23852,
-  0.088802,
-  0.36739,
-  -0.44698,
-  0.31683,
-  0.36566,
-  0.10531,
-  0.1156
+0.76234,
+0.082078,
+0.13553,
+0.10272,
+0.11368,
+0.093968,
+0.083758,
+0.016915,
+0.040295,
+0.088353,
+0.088994,
+0.17516,
+0.37789,
+1.032,
+1.1174,
+0.24815,
+0.080329,
+0.37511,
+-0.50269,
+0.43313,
+0.24815,
+0.00036658,
+0.065646
+},{1.0291,
+-0.014832,
+-0.0027328,
+-0.021178,
+-0.026747,
+-0.010609,
+-0.045864,
+-0.063615,
+-0.042059,
+-0.033922,
+-0.028195,
+0.0085104,
+0.084052,
+0.23718,
+0.37288,
+0.055449,
+-0.014756,
+0.00022679,
+-0.12671,
+0.21436,
+0.01681,
+0.022406,
+0.03579
 },{
-  0.74542,
-  -0.017272,
-  -0.0093558,
-  -0.015921,
-  -0.026303,
-  -0.01767,
-  -0.019827,
-  -0.050605,
-  -0.042837,
-  -0.023272,
-  -0.016655,
-  0.020372,
-  0.073217,
-  0.22193,
-  0.18829,
-  0.048546,
-  0.0017969,
-  0.040118,
-  -0.11725,
-  0.083804,
-  0.15577,
-  0.030237,
-  0.033396
-},{
-  1.0358,
-  -0.0068546,
-  -0.016864,
-  -0.023948,
-  -0.033779,
-  -0.028894,
-  -0.023861,
-  -0.025045,
-  -0.023585,
-  -0.0032873,
-  0.0018659,
-  0.021918,
-  0.079189,
-  0.19965,
-  0.14167,
-  0.059409,
-  0.013016,
-  -0.00080056,
-  -0.13697,
-  0.055233,
-  0.10308,
-  0.016363,
-  0.026789
+1.1109,
+0.011099,
+-0.0066683,
+-0.018154,
+-0.017331,
+-0.027449,
+-0.011214,
+-0.02515,
+-0.0035293,
+0.0087898,
+0.037969,
+0.10621,
+0.16985,
+0.35917,
+0.3436,
+0.086977,
+0.020445,
+0.0045448,
+-0.21003,
+0.14174,
+0.06379,
+0.00015166,
+-0.0048465
 }};
 
-double mc_evaluate(const int & pos) {
+double mc_evaluate(int pos) {
   int last_zero = -1;
   int single_string_length = 0;
   int double_string_length = 0;
@@ -333,7 +331,7 @@ double mc_evaluate(const int & pos) {
 /*****************************************************************************/
 // Type Transformation between Hand:struct, Shape:vector, and Cards:set
 /*****************************************************************************/
-int card_to_point(const int & card) {
+int card_to_point(int card) {
   if (card >= 52) {
     return card - 39;
   } else {
@@ -507,7 +505,7 @@ void mc_calc_detail(int pos, Hand hand) {
 
 }
 
-void mc_redo(int pos, const Hand & hand) {
+void mc_redo(int pos, Hand hand) {
   if (hand.is_pass()) {
     return;
   }
@@ -521,7 +519,7 @@ void mc_redo(int pos, const Hand & hand) {
   }
 }
 
-void mc_undo(int pos, const Hand & hand) {
+void mc_undo(int pos, Hand hand) {
   if (hand.is_pass()) {
     return;
   }
@@ -656,7 +654,7 @@ int get_length_with_width(int left, int width) {
 }
 
 
-void redo(const Hand & hand) {
+void redo(Hand hand) {
   if (hand.is_pass()) {
     return;
   }
@@ -688,54 +686,8 @@ void undo(Hand hand) {
 /*****************************************************************************/
 // One Morte Carlo Step for One Player
 /*****************************************************************************/
-Hand mc_step(int pos, const Hand & prev, int random_number) {
+Hand mc_step(int pos, Hand prev, int random_number) {
   auto max_hand = Hand();
-  /** Check special case **/
-  if (prev.is_pass() && mc_rem[pos] == 2) {
-    bool two_single_flag = true;
-    for (int i = 0; i < 15; ++i) {
-      if (mc_shape[pos][i] == 2) {
-        two_single_flag = false;
-        break;
-      }
-    }
-    if (two_single_flag) {
-      // Case 1 : Other has only one 
-      if(pos == 0 && (mc_rem[1] == 1 || mc_rem[2] == 1)) {
-        for (int i = 14; i >= 0; --i) {
-          if (mc_shape[pos][i] != 0) {
-            auto hand = Hand(i, 1, 1);
-            mc_redo(pos, hand);
-            return hand;
-          }
-        }
-      }
-      if(pos != 0 && (mc_rem[0] == 1)) {
-        for (int i = 14; i >= 0; --i) {
-          if (mc_shape[pos][i] != 0) {
-            auto hand = Hand(i, 1, 1);
-            mc_redo(pos, hand);
-            return hand;
-          }
-        }
-      }
-      // Case 2 : biggest hand
-      for (int i = 14; i >= 0; --i) {
-        int next_pos = (pos+1) % 3;
-        int prev_pos = (pos+2) % 3;
-        if (mc_shape[pos][i] != 0) {
-          auto hand = Hand(i, 1, 1);
-          mc_redo(pos, hand);
-          return hand;
-        }
-        if (mc_shape[prev_pos][i] != 0 || mc_shape[next_pos] != 0) {
-          break;
-        }
-      }
-    }
-  }
-  /** End check **/
-
   double max_val = -10000.;
   list<pair<Hand, double>> hands;
   /** Search Strings, 3+2 and 3+1 **/
@@ -752,7 +704,7 @@ Hand mc_step(int pos, const Hand & prev, int random_number) {
           // Add carriables for 3-string or pure 3
           if (width >= 3) {
             vector<vector<int>> carriables;
-            for (auto carry_width = 1; carry_width < 3; ++carry_width) {
+            for (auto carry_width = 1; carry_width < width; ++carry_width) {
               vector<int> carriable;
               for (auto i = 0; i < 15; ++i) {
                 if (i >= left && i < left+l) {
@@ -766,7 +718,7 @@ Hand mc_step(int pos, const Hand & prev, int random_number) {
               carriables.push_back(carriable);
             }
 
-            for (auto carry_width = 1; carry_width < 3; ++carry_width) {
+            for (auto carry_width = 1; carry_width < width; ++carry_width) {
               auto carriable = carriables[carry_width-1];
               if (carriable.size() < (width-2)*l) {
                 continue;
@@ -822,7 +774,8 @@ Hand mc_step(int pos, const Hand & prev, int random_number) {
   }
 
   /** Search Bomb **/
-  if (mc_rem[0] <= 6 || mc_rem[1] <= 6 || mc_rem[2] <= 6) {
+if (true) {
+  //if (mc_rem[0] <= 6 || mc_rem[1] <= 6 || mc_rem[2] <= 6) {
     for (int i = 0; i < 13; ++i) {
       if (mc_shape[pos][i] == 4) {
         Hand bomb_hand = Hand(i, 4, 1);
@@ -881,22 +834,20 @@ Hand mc_step(int pos, const Hand & prev, int random_number) {
 /*****************************************************************************/
 // Monte Carlo Process (One Game)
 /*****************************************************************************/
-int mc_run(Hand prev_hand, const Hand & prev_prev_hand, bool prev_pass) {
+int mc_run(Hand prev_hand, Hand prev_prev_hand, bool prev_pass) {
 
-  if (local_debug == true) {
-    cout << endl;
-    cout << "start run" << endl;
-    cout << prev_hand.point << endl;
-    //prev_hand.show();
-    cout << endl;
-    for (int i = 0; i < 3; ++i) {
-        for (int j = 0; j < 15; ++j) {
-            cout << mc_shape[i][j] << " ";
-        }
-        cout << endl;
-    }
-    cout << "********************" << endl;
-  }
+  //cout << endl;
+  //cout << "start run" << endl;
+  //cout << prev_hand.point << endl;
+  ////prev_hand.show();
+  //cout << endl;
+  //for (int i = 0; i < 3; ++i) {
+  //    for (int j = 0; j < 15; ++j) {
+  //        cout << mc_shape[i][j] << " ";
+  //    }
+  //    cout << endl;
+  //}
+  //cout << "********************" << endl;
 
   int position = (my_pos + 1) % 3;
   int pass = 0;
@@ -931,15 +882,13 @@ int mc_run(Hand prev_hand, const Hand & prev_prev_hand, bool prev_pass) {
     }
     position = (position + 1) % 3;
 
-    if (local_debug == true) {
-      for (int i = 0; i < 3; ++i) {
-          for (int j = 0; j < 15; ++j) {
-            cout << mc_shape[i][j] << " ";
-          }
-          cout << endl;
-      }
-      cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~" << endl;
-    }
+    //for (int i = 0; i < 3; ++i) {
+    //    for (int j = 0; j < 15; ++j) {
+    //      cout << mc_shape[i][j] << " ";
+    //    }
+    //    cout << endl;
+    //}
+    //cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~" << endl;
 
   }
   int vic_pos;
@@ -957,7 +906,7 @@ int mc_run(Hand prev_hand, const Hand & prev_prev_hand, bool prev_pass) {
 /*****************************************************************************/
 // Search Process: Start Monte Carlo Process for Each Hand and Choose the Best
 /*****************************************************************************/
-vector<int> mc_play(const Hand & prev, bool prev_pass) {
+vector<int> mc_play(Hand prev, bool prev_pass) {
   clock_t start_time = clock();
   auto max_hand = Hand();
   list<pair<Hand, int>> hands;
@@ -976,7 +925,7 @@ vector<int> mc_play(const Hand & prev, bool prev_pass) {
         // Add carriables for 3-string or pure 3
         if (width >= 3) {
           vector<vector<int>> carriables;
-          for (auto carry_width = 1; carry_width < 3; ++carry_width) {
+          for (auto carry_width = 1; carry_width < width; ++carry_width) {
             vector<int> carriable;
             for (auto i = 0; i < 15; ++i) {
               if (i >= left && i < left+l) {
@@ -990,7 +939,7 @@ vector<int> mc_play(const Hand & prev, bool prev_pass) {
             carriables.push_back(carriable);
           }
 
-          for (auto carry_width = 1; carry_width < 3; ++carry_width) {
+          for (auto carry_width = 1; carry_width < width; ++carry_width) {
             auto carriable = carriables[carry_width-1];
             if (carriable.size() < (width-2)*l) {
                 continue;
@@ -1078,18 +1027,27 @@ vector<int> mc_play(const Hand & prev, bool prev_pass) {
         logk += 1.0 / (double) i;
     }
     n.push_back(0);
+
     for (int i = 1; i < k; ++i) {
       int nk = (int) ceil(1.0 / logk * ((double) (MC_GAME_NUMBERS-k)) / ((double) (k+1-i)));
       n.push_back(nk);
     }
 
+
     auto cards = mc_distribute();
+    double hands_searched = 0.0;
+    clock_t current_time = clock();
+    double BEGIN_SECS = double (current_time - start_time) / CLOCKS_PER_SEC;
+    double SHUFFLE_SEC ;
     for (int i = 1; i <= k-1; ++i) {
       int game_number = n[i]-n[i-1];
       for (int j = 0; j < game_number; ++j) {
         /** Init card distribution with predict **/
         mc_shuffle(cards);
-
+        if(i==1 && j ==0){
+            clock_t current_time = clock();
+            SHUFFLE_SEC = double (current_time - start_time) / CLOCKS_PER_SEC -BEGIN_SECS;
+        }
         //cout << "shuffle result:" << endl;
         //for (auto card : cards) {
         //  cout << card << ',';
@@ -1097,6 +1055,7 @@ vector<int> mc_play(const Hand & prev, bool prev_pass) {
         //cout << endl;
 
         for (auto it = hands.begin(); it != hands.end(); ++it) {
+          ++hands_searched;
           auto hand = it->first;
           redo(hand);
           mc_init(cards);
@@ -1125,6 +1084,17 @@ vector<int> mc_play(const Hand & prev, bool prev_pass) {
         }
         clock_t current_time = clock();
         ELAPSED_SECS = double (current_time - start_time) / CLOCKS_PER_SEC;
+        ///estimate rounds begin///
+        if (i==1 && j == 0) {
+            int rounds = ceil((0.9-BEGIN_SECS) / ((ELAPSED_SECS-BEGIN_SECS - SHUFFLE_SEC) /hands_searched + SHUFFLE_SEC/logk));
+            if(rounds < 5000)
+                rounds = 5000;
+            for (int r = 1; r < k; ++r) {
+            n[r] = (int) ceil(1.0 / logk * ((double) (rounds-k)) / ((double) (k+1-r)));
+            }
+            game_number = n[1]-n[0];
+        }
+        ///estimate rounds end///
         if (ELAPSED_SECS > 0.9) {
           int max_win = -0x7FFFFFFF;
           list<pair<Hand, int>>::iterator best_hand;
@@ -1142,11 +1112,13 @@ vector<int> mc_play(const Hand & prev, bool prev_pass) {
       int min_win = 0x7FFFFFFF;
       list<pair<Hand, int>>::iterator worst_hand, it;
 
+      /*
       for (auto hand_with_win : hands) {
           hand_with_win.first.show();
           debug_buffer << " : " << hand_with_win.second / 200. / (double) n[i] << " , " ;
       }
       debug_buffer << " | ";
+      */
 
       for (auto it = hands.begin(); it != hands.end(); ++it) {
         if (it->second < min_win) {
@@ -1154,8 +1126,19 @@ vector<int> mc_play(const Hand & prev, bool prev_pass) {
           min_win = it->second;
         }
       }
-      hands.erase(worst_hand);
+      if(i >= k - 30){
+        worst_hand->first.show();
+      debug_buffer <<setprecision(3)<<fixed<< " : " << min_win / 200. / (double) n[i] << " "<<ELAPSED_SECS<<"s,";
+      }
 
+      hands.erase(worst_hand);
+    if(i==k-1){
+        worst_hand = hands.begin();
+        debug_buffer <<"RES:";
+        min_win = worst_hand->second;
+        worst_hand->first.show();
+        debug_buffer <<setprecision(3)<<fixed<< " : " << min_win / 200. / (double) n[i] << " , " ;
+    }
       //cout << "used seconds:" << ELAPSED_SECS << endl;
 
     }
@@ -1186,7 +1169,7 @@ void input() {
 
   // First request
   {
-    auto first_request = input["requests"][0u]; 
+    auto first_request = input["requests"][0u];
     auto own = first_request["own"];
     auto dipai = first_request["publiccard"];
     auto first_history = first_request["history"];
