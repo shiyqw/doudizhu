@@ -18,7 +18,7 @@ using namespace std;
 /*****************************************************************************/
 // Global Data
 /*****************************************************************************/
-int MC_GAME_NUMBERS = 5000;
+int MC_GAME_NUMBERS = 4000;
 double ELAPSED_SECS = -1.;
 set<int> my_cards;
 set<int> last_hand_cards;
@@ -1032,22 +1032,26 @@ vector<int> mc_play(Hand prev, bool prev_pass) {
       int nk = (int) ceil(1.0 / logk * ((double) (MC_GAME_NUMBERS-k)) / ((double) (k+1-i)));
       n.push_back(nk);
     }
+    int final_candidates = 5;
+    for(int i = max(k-final_candidates+1,1); i<k; ++i){
+        n[i] = 1e8 * max(i-k+final_candidates +1,1);
+    }
 
 
     auto cards = mc_distribute();
     double hands_searched = 0.0;
-    clock_t current_time = clock();
+    /*clock_t current_time = clock();
     double BEGIN_SECS = double (current_time - start_time) / CLOCKS_PER_SEC;
-    double SHUFFLE_SEC ;
+    double SHUFFLE_SEC ;*/
     for (int i = 1; i <= k-1; ++i) {
       int game_number = n[i]-n[i-1];
       for (int j = 0; j < game_number; ++j) {
         /** Init card distribution with predict **/
         mc_shuffle(cards);
-        if(i==1 && j ==0){
+        /*if(i==1 && j ==0){
             clock_t current_time = clock();
             SHUFFLE_SEC = double (current_time - start_time) / CLOCKS_PER_SEC -BEGIN_SECS;
-        }
+        }*/
         //cout << "shuffle result:" << endl;
         //for (auto card : cards) {
         //  cout << card << ',';
@@ -1055,7 +1059,7 @@ vector<int> mc_play(Hand prev, bool prev_pass) {
         //cout << endl;
 
         for (auto it = hands.begin(); it != hands.end(); ++it) {
-          ++hands_searched;
+          //++hands_searched;
           auto hand = it->first;
           redo(hand);
           mc_init(cards);
@@ -1084,6 +1088,7 @@ vector<int> mc_play(Hand prev, bool prev_pass) {
         }
         clock_t current_time = clock();
         ELAPSED_SECS = double (current_time - start_time) / CLOCKS_PER_SEC;
+        /*
         ///estimate rounds begin///
         if (i==1 && j == 0) {
             int rounds = ceil((0.9-BEGIN_SECS) / ((ELAPSED_SECS-BEGIN_SECS - SHUFFLE_SEC) /hands_searched + SHUFFLE_SEC/logk));
@@ -1095,7 +1100,8 @@ vector<int> mc_play(Hand prev, bool prev_pass) {
             game_number = n[1]-n[0];
         }
         ///estimate rounds end///
-        if (ELAPSED_SECS > 0.9) {
+        */
+        if (ELAPSED_SECS > 0.95) {
           int max_win = -0x7FFFFFFF;
           list<pair<Hand, int>>::iterator best_hand;
           for (auto it = hands.begin(); it != hands.end(); ++it) {
@@ -1104,7 +1110,14 @@ vector<int> mc_play(Hand prev, bool prev_pass) {
               max_win = it->second;
             }
           }
-
+          /// debug begin here
+          debug_buffer << "| TOP k: ";
+          for (auto hand_with_win : hands) {
+            hand_with_win.first.show();
+            debug_buffer << " : " << hand_with_win.second / 200. / (double) (n[i-1]+j) << " , " ;
+          }
+          debug_buffer << " | ";
+          /// debug end here
           max_hand = best_hand->first;
           return hand_to_card(max_hand);
         }
