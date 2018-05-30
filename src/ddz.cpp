@@ -41,7 +41,7 @@ clock_t start_time;
 bool enemy_is_ordered = true;
 stringstream debug_buffer;
 int encode_mapping[4] = {3,1,2,0};
-const int shuffle_times = 5;
+const int shuffle_times = 1;
 
 /*****************************************************************************/
 // Data Structure for Hand Type
@@ -111,6 +111,9 @@ bool check_valid(Hand hand, Hand prev) {
     } else {
       return true;
     }
+  }
+  if (hand.is_pass()) {
+    return true;
   }
   if (prev.is_bomb()) {
     if (!hand.is_bomb()) {
@@ -839,18 +842,20 @@ if (true) {
 /*****************************************************************************/
 int mc_run(Hand prev_hand, Hand prev_prev_hand, bool prev_pass) {
 
-  //cout << endl;
-  //cout << "start run" << endl;
-  //cout << prev_hand.point << endl;
-  ////prev_hand.show();
-  //cout << endl;
-  //for (int i = 0; i < 3; ++i) {
-  //    for (int j = 0; j < 15; ++j) {
-  //        cout << mc_shape[i][j] << " ";
-  //    }
-  //    cout << endl;
-  //}
-  //cout << "********************" << endl;
+  if (local_debug) {
+    cout << endl;
+    cout << "start run" << endl;
+    cout << prev_hand.point << endl;
+    //prev_hand.show();
+    cout << endl;
+    for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 15; ++j) {
+            cout << mc_shape[i][j] << " ";
+        }
+        cout << endl;
+    }
+    cout << "********************" << endl;
+  }
 
   int position = (my_pos + 1) % 3;
   int pass = 0;
@@ -885,13 +890,15 @@ int mc_run(Hand prev_hand, Hand prev_prev_hand, bool prev_pass) {
     }
     position = (position + 1) % 3;
 
-    //for (int i = 0; i < 3; ++i) {
-    //    for (int j = 0; j < 15; ++j) {
-    //      cout << mc_shape[i][j] << " ";
-    //    }
-    //    cout << endl;
-    //}
-    //cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~" << endl;
+    if (local_debug) {
+      for (int i = 0; i < 3; ++i) {
+          for (int j = 0; j < 15; ++j) {
+            cout << mc_shape[i][j] << " ";
+          }
+          cout << endl;
+      }
+      cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~" << endl;
+    }
 
   }
   int vic_pos;
