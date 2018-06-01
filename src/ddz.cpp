@@ -701,7 +701,7 @@ void undo(Hand hand) {
 /*****************************************************************************/
 // One Morte Carlo Step for One Player
 /*****************************************************************************/
-Hand mc_step(int pos, Hand prev, int random_number, int pass_number) {
+Hand mc_step(int pos, Hand prev, int random_number, int pass_number, int search_index) {
   auto max_hand = Hand();
   double max_val = -10000.;
   list<pair<Hand, double>> hands;
@@ -814,14 +814,21 @@ Hand mc_step(int pos, Hand prev, int random_number, int pass_number) {
   }
 
   /** Search Pass (May be used for cooperation) **/
-  if ((pos == 2 && pass_number == 0) || (pos == 1 && pass_number == 1)) {
-    Hand pass_hand = Hand();
-    if (check_valid(pass_hand, prev)) {
-      mc_redo(pos, pass_hand);
-      double val = mc_evaluate(pos);
-      hands.push_back(make_pair(pass_hand, val));
-      mc_undo(pos, pass_hand);
-    }
+  //if ((pos == 2 && pass_number == 0) || (pos == 1 && pass_number == 1)) {
+  //  Hand pass_hand = Hand();
+  //  if (check_valid(pass_hand, prev)) {
+  //    mc_redo(pos, pass_hand);
+  //    double val = mc_evaluate(pos);
+  //    hands.push_back(make_pair(pass_hand, val));
+  //    mc_undo(pos, pass_hand);
+  //  }
+  //}
+  Hand pass_hand = Hand();
+  if (check_valid(pass_hand, prev)) {
+    mc_redo(pos, pass_hand);
+    double val = mc_evaluate(pos);
+    hands.push_back(make_pair(pass_hand, val));
+    mc_undo(pos, pass_hand);
   }
 
   /** Skim **/
@@ -835,6 +842,9 @@ Hand mc_step(int pos, Hand prev, int random_number, int pass_number) {
   random_number = min(random_number, (int) hands.size());
   if (!hands.empty()) {
     auto rand_result = rand() % random_number;
+    if (search_index > 0) {
+      rand_result = search_index;
+    }
     for (int i = 0; i < rand_result; ++i) {
       hands.erase(max_element(hands.begin(), hands.end(), my_comp));
     }
@@ -851,7 +861,7 @@ Hand mc_step(int pos, Hand prev, int random_number, int pass_number) {
 /*****************************************************************************/
 // Monte Carlo Process (One Game)
 /*****************************************************************************/
-int mc_run(Hand prev_hand, Hand prev_prev_hand, bool prev_pass) {
+int mc_run(Hand prev_hand, Hand prev_prev_hand, bool prev_pass, int search_index) {
 
   if (local_debug) {
     cout << endl;
@@ -888,8 +898,7 @@ int mc_run(Hand prev_hand, Hand prev_prev_hand, bool prev_pass) {
     if (rem[0] <= 5 || rem[1] <= 5 || rem[2] <= 5) {
         random_number = 3;
     }
-
-    Hand hand = mc_step(position, prev_hand, random_number, pass);
+    Hand hand = mc_step(position, prev_hand, random_number, pass, search_index % 2);
     if (hand.length == 0) {
       pass += 1;
     } else {
@@ -911,6 +920,7 @@ int mc_run(Hand prev_hand, Hand prev_prev_hand, bool prev_pass) {
       cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~" << endl;
     }
 
+    search_index /= 2;
   }
   int vic_pos;
   if(mc_rem[0] == 0) {
@@ -1105,28 +1115,40 @@ vector<int> mc_play(Hand prev, bool prev_pass) {
           //++hands_searched;
           auto hand = it->first;
           redo(hand);
-          mc_init(cards);
-          mc_calc_detail(my_pos, hand);
-          int win_pos = mc_run(hand, prev, prev_pass);
-          //cout << hand.width << endl;
-          //cout << "score : " << score[0] << ',' << score[1] << ',' << score[2] << endl;
+          int search_times = 1;
           if (my_pos == 0) {
-            int delta = 2*score[0] - (score[1]+score[2]);
-            it->second += delta;
-            if (win_pos == 0) {
-              it->second += 400;
-            } else {
-              it->second -= 400;
+            search_times = 4;
+          }
+          int min_score = 10000.;
+          for (int s = 0; s < search_times; ++s) {
+            mc_init(cards);
+            mc_calc_detail(my_pos, hand);
+            int win_pos = mc_run(hand, prev, prev_pass, s);
+            //cout << hand.width << endl;
+            //cout << "score : " << score[0] << ',' << score[1] << ',' << score[2] << endl;
+            int this_score = 0;
+            if (my_pos == 0) {
+              int delta = 2*score[0] - (score[1]+score[2]);
+              this_score += delta;
+              if (win_pos == 0) {
+                this_score += 400;
+              } else {
+                this_score -= 400;
+              }
+            } else if (my_pos != 0) {
+              int delta = (score[1]+score[2]) - 2*score[0];
+              this_score += delta;
+              if (win_pos == 0) {
+                this_score -= 400;
+              } else {
+                this_score += 400;
+              }
             }
-          } else if (my_pos != 0) {
-            int delta = (score[1]+score[2]) - 2*score[0];
-            it->second += delta;
-            if (win_pos == 0) {
-              it->second -= 400;
-            } else {
-              it->second += 400;
+            if (this_score < min_score) {
+              min_score = this_score;
             }
           }
+          it->second += min_score;
           undo(hand);
         }
         clock_t current_time = clock();
