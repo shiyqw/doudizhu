@@ -7,7 +7,8 @@ function [ w ] = train_logistic( X,y, lambda )
 %     minimize f
 % cvx_end
 w = glmfit(X, y , 'binomial', 'link', 'logit');
-%w = lassoglm(X, y , 'binomial', 'link', 'logit');
-
+% [w,FitInfo] = lassoglm(X, y , 'binomial', 'link', 'logit','Lambda',lambda);
+% w0 = FitInfo.Intercept;
+% w = [w0;w];
 end
 

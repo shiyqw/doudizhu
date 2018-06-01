@@ -10,12 +10,12 @@
 #include <cstdlib>
 #include <list>
 #include <string>
-
+#include <fstream>
 #include "jsoncpp/json.h"
 
 using namespace std;
 bool local_debug = false;
-
+bool long_time_control = false;
 /*****************************************************************************/
 // Global Data
 /*****************************************************************************/
@@ -42,7 +42,7 @@ bool enemy_is_ordered = true;
 stringstream debug_buffer;
 int encode_mapping[4] = {3,1,2,0};
 
-//const int shuffle_times = 1;
+const int shuffle_times = 1;
 
 /*****************************************************************************/
 // Data Structure for Hand Type
@@ -833,16 +833,34 @@ Hand mc_step(int pos, Hand prev, int random_number, int pass_number) {
   }
   /** Randomized **/
   random_number = min(random_number, (int) hands.size());
-  if (!hands.empty()) {
-    auto rand_result = rand() % random_number;
-    for (int i = 0; i < rand_result; ++i) {
-      hands.erase(max_element(hands.begin(), hands.end(), my_comp));
-    }
+  /*if (!hands.empty()) {
+	  auto rand_result = rand() % random_number;
+	  for (int i = 0; i < rand_result; ++i) {
+		  hands.erase(max_element(hands.begin(), hands.end(), my_comp));
+	  }
   }
-
   if (!hands.empty()) {
     max_hand = max_element(hands.begin(), hands.end(), my_comp)->first;
   }
+  */
+  if (!hands.empty()) {
+	  auto tmp = max_element(hands.begin(), hands.end(), my_comp);
+	  double max_score = tmp->second;
+	  max_hand = tmp->first;
+	  hands.erase(max_element(hands.begin(), hands.end(), my_comp));
+	  if (!hands.empty()) {
+		  auto tmp = max_element(hands.begin(), hands.end(), my_comp);
+		  double second_score = tmp->second;
+		  auto second_hand = tmp->first;
+		  double p1 = 1.0 / (1 + exp(-max_score)), p2 = 1.0 / (1 + exp(-second_score));
+		  if (abs(p1 - p2) < 0.05) {
+			  auto rand_result = rand() % random_number;
+			  if (rand_result == 1) {
+				  max_hand = second_hand;
+			  }
+		  }
+	  }
+  }  
   mc_calc_detail(pos, max_hand);
   mc_redo(pos, max_hand);
   return max_hand;
@@ -854,18 +872,20 @@ Hand mc_step(int pos, Hand prev, int random_number, int pass_number) {
 int mc_run(Hand prev_hand, Hand prev_prev_hand, bool prev_pass) {
 
   if (local_debug) {
-    cout << endl;
-    cout << "start run" << endl;
-    cout << prev_hand.point << endl;
+	  ofstream fout("debug.txt", std::ios_base::app);
+    fout << endl;
+    fout << "start run" << endl;
+    fout << prev_hand.point << endl;
     //prev_hand.show();
-    cout << endl;
+    fout << endl;
     for (int i = 0; i < 3; ++i) {
         for (int j = 0; j < 15; ++j) {
-            cout << mc_shape[i][j] << " ";
+            fout << mc_shape[i][j] << " ";
         }
-        cout << endl;
+        fout << endl;
     }
-    cout << "********************" << endl;
+    fout << "********************" << endl;
+	fout.close();
   }
 
   int position = (my_pos + 1) % 3;
@@ -879,15 +899,15 @@ int mc_run(Hand prev_hand, Hand prev_prev_hand, bool prev_pass) {
   }
 
   while(mc_rem[0] != 0 && mc_rem[1] != 0 && mc_rem[2] != 0) {
-    int random_number = 1;
+    int random_number = 2;
 
     /** Below should be toggled if we want add random factors **/
     //if (rem[0] + rem[1] + rem[2] <= 25) {
     //    random_number = 3;
     //}
-    if (rem[0] <= 5 || rem[1] <= 5 || rem[2] <= 5) {
+    /*if (rem[0] <= 5 || rem[1] <= 5 || rem[2] <= 5) {
         random_number = 3;
-    }
+    }*/
 
     Hand hand = mc_step(position, prev_hand, random_number, pass);
     if (hand.length == 0) {
@@ -902,13 +922,15 @@ int mc_run(Hand prev_hand, Hand prev_prev_hand, bool prev_pass) {
     position = (position + 1) % 3;
 
     if (local_debug) {
+		ofstream fout("debug.txt", std::ios_base::app);
       for (int i = 0; i < 3; ++i) {
           for (int j = 0; j < 15; ++j) {
-            cout << mc_shape[i][j] << " ";
+            fout << mc_shape[i][j] << " ";
           }
-          cout << endl;
+          fout << endl;
       }
-      cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~" << endl;
+      fout << "~~~~~~~~~~~~~~~~~~~~~~~~~~" << endl;
+	  fout.close();
     }
 
   }
@@ -932,6 +954,9 @@ vector<int> mc_play(Hand prev, bool prev_pass) {
   auto max_hand = Hand();
   list<pair<Hand, int>> hands;
   double max_win_rate = -10000.;
+  double TIME_LIMIT = 0.95;
+  if (long_time_control)
+	  TIME_LIMIT = 3.00;
 
   /** Search Strings, 3+2 and 3+1 **/
   for (auto left = 0; left < 13; ++left) {
@@ -1071,26 +1096,27 @@ vector<int> mc_play(Hand prev, bool prev_pass) {
         vector<int> worst_shuffle;
         double worst_score = -10000.;
         mc_shuffle(cards);
-        //for(int shuffle = 0; shuffle < shuffle_times; ++shuffle) {
-        //  mc_shuffle(cards);
-        //  auto one_shuffle = vector<int>(cards);
-        //  mc_init(one_shuffle);
-        //  vector<double> shuffle_score(3, 0.);
-        //  for (int pos = 0; pos < 3; ++pos) {
-        //    shuffle_score[pos] = mc_evaluate(pos);
-        //  }
-        //  double temp_score;
-        //  if (my_pos == 0) {
-        //    temp_score = max(shuffle_score[1], shuffle_score[2]);
-        //  } else {
-        //    temp_score = shuffle_score[0];
-        //  }
-        //  if (temp_score > worst_score) {
-        //    worst_score = temp_score;
-        //    worst_shuffle = one_shuffle;
-        //  }
-        //}
-
+		/*/*
+        for(int shuffle = 0; shuffle < shuffle_times; ++shuffle) {
+          mc_shuffle(cards);
+          auto one_shuffle = vector<int>(cards);
+          mc_init(one_shuffle);
+          vector<double> shuffle_score(3, 0.);
+          for (int pos = 0; pos < 3; ++pos) {
+            shuffle_score[pos] = mc_evaluate(pos);
+          }
+          double temp_score;
+          if (my_pos == 0) {
+            temp_score = max(shuffle_score[1], shuffle_score[2]);
+          } else {
+            temp_score = shuffle_score[0];
+          }
+          if (temp_score > worst_score) {
+            worst_score = temp_score;
+            worst_shuffle = one_shuffle;
+          }
+        }
+		*/
         /*if(i==1 && j ==0){
             clock_t current_time = clock();
             SHUFFLE_SEC = double (current_time - start_time) / CLOCKS_PER_SEC -BEGIN_SECS;
@@ -1112,6 +1138,7 @@ vector<int> mc_play(Hand prev, bool prev_pass) {
           //cout << "score : " << score[0] << ',' << score[1] << ',' << score[2] << endl;
           if (my_pos == 0) {
             int delta = 2*score[0] - (score[1]+score[2]);
+			//int delta = 2 * score[0];
             it->second += delta;
             if (win_pos == 0) {
               it->second += 400;
@@ -1144,7 +1171,7 @@ vector<int> mc_play(Hand prev, bool prev_pass) {
         }
         ///estimate rounds end///
         */
-        if (ELAPSED_SECS > 0.95) {
+        if (ELAPSED_SECS > TIME_LIMIT) {
           int max_win = -0x7FFFFFFF;
           list<pair<Hand, int>>::iterator best_hand;
           for (auto it = hands.begin(); it != hands.end(); ++it) {
@@ -1575,4 +1602,5 @@ int main() {
   /** Above for debug **/
 
   output(mc_play(last_hand, prev_pass));
+
 }
