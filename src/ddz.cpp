@@ -701,7 +701,7 @@ void undo(Hand hand) {
 /*****************************************************************************/
 // One Morte Carlo Step for One Player
 /*****************************************************************************/
-Hand mc_step(int pos, Hand prev, int random_number) {
+Hand mc_step(int pos, Hand prev, int random_number, int pass_number) {
   auto max_hand = Hand();
   double max_val = -10000.;
   list<pair<Hand, double>> hands;
@@ -789,7 +789,7 @@ Hand mc_step(int pos, Hand prev, int random_number) {
   }
 
   /** Search Bomb **/
-if (true) {
+  if (true) {
   //if (mc_rem[0] <= 6 || mc_rem[1] <= 6 || mc_rem[2] <= 6) {
     for (int i = 0; i < 13; ++i) {
       if (mc_shape[pos][i] == 4) {
@@ -814,12 +814,14 @@ if (true) {
   }
 
   /** Search Pass (May be used for cooperation) **/
-  Hand pass_hand = Hand();
-  if (check_valid(pass_hand, prev)) {
-    mc_redo(pos, pass_hand);
-    double val = mc_evaluate(pos);
-    hands.push_back(make_pair(pass_hand, val));
-    mc_undo(pos, pass_hand);
+  if ((pos == 2 && pass_number == 0) || (pos == 1 && pass_number == 1)) {
+    Hand pass_hand = Hand();
+    if (check_valid(pass_hand, prev)) {
+      mc_redo(pos, pass_hand);
+      double val = mc_evaluate(pos);
+      hands.push_back(make_pair(pass_hand, val));
+      mc_undo(pos, pass_hand);
+    }
   }
 
   /** Skim **/
@@ -887,7 +889,7 @@ int mc_run(Hand prev_hand, Hand prev_prev_hand, bool prev_pass) {
         random_number = 3;
     }
 
-    Hand hand = mc_step(position, prev_hand, random_number);
+    Hand hand = mc_step(position, prev_hand, random_number, pass);
     if (hand.length == 0) {
       pass += 1;
     } else {
