@@ -691,78 +691,32 @@ Hand mc_step(int pos, Hand prev, int random_number) {
   auto max_hand = Hand();
   double max_val = -10000.;
   list<pair<Hand, double>> hands;
-  /** Search Strings, 3+2 and 3+1 **/
-  if (prev.length == 0 || prev.length * prev.width >= 3) {
-    for (auto left = 0; left < 13; ++left) {
-      for (auto width = 1; width <= 4; ++width) {
-        auto length = mc_get_length_with_width(pos, left, width);
-        auto min_length = 7-2*width;
-        if (width == 4) {
-          min_length = 1;
-        }
-        for (auto l = min_length; l <= length; ++l) {
-          Hand string_hand = Hand(left, width, l);
-          // Add carriables for 3-string or pure 3
-          if (width >= 3) {
-            vector<vector<int>> carriables;
-            for (auto carry_width = 1; carry_width < width; ++carry_width) {
-              vector<int> carriable;
-              for (auto i = 0; i < 15; ++i) {
-                if (i >= left && i < left+l) {
-                  continue;
-                }
-                if (mc_shape[pos][i] < carry_width) {
-                  continue;
-                }
-                carriable.push_back(i);
-              }
-              carriables.push_back(carriable);
-            }
-
-            for (auto carry_width = 1; carry_width < width; ++carry_width) {
-              auto carriable = carriables[carry_width-1];
-              if (carriable.size() < (width-2)*l) {
-                continue;
-              }
-              auto combinations = generate_combination(carriable.size(), (width-2)*l);
-              for (auto combination : combinations) {
-                vector<int> carry;
-                for (auto index : combination) {
-                  for (int j = 0; j < carry_width; ++j) {
-                    carry.push_back(carriable[index]);
-                  }
-                }
-                string_hand.set_carry(carry);
-                /** Start main evaluation area **/
-                if (check_valid(string_hand, prev)) {
-                  mc_redo(pos, string_hand);
-                  double val = mc_evaluate(pos);
-                  hands.push_back(make_pair(string_hand, val));
-                  mc_undo(pos, string_hand);
-                }
-                /** End main evaluation area **/
-                string_hand.clear_carry();
-              }
-            }
-          }
-
-          if (!check_valid(string_hand, prev) || string_hand.width == 4) {
-            continue;
-          }
-          mc_redo(pos, string_hand);
-          // Check pure string
-          auto val = mc_evaluate(pos);
-          hands.push_back(make_pair(string_hand, val));
-          mc_undo(pos, string_hand);
-        }
-      }
+  /** Manual Rule 0: Play single when controlled, others > 1 **/
+  bool control_flag = false;
+  int j = 14;
+  for (; j >= 0; --j) {
+    if (mc_shape[(pos+1)%3][j] > 0) {
+      break;
     }
+    if (mc_shape[(pos+2)%3][j] > 0) {
+      break;
+    }
+    control_flag = true;
+  }
+  if (pos == 0 && (mc_rem[1] == 1 || mc_rem[2] == 1)) {
+    control_flag = false;
+  }
+  if (pos != 0 && mc_rem[0] == 1) {
+    control_flag = false;
+  }
+  if (!prev.is_pass()) {
+    control_flag = false;
   }
 
-  /** Search pure 1 or 2  card hands **/
-  if (prev.length <= 1) {
-    for (int i = 0; i < 15; ++i) {
-      for (int width = 1; width <= mc_shape[pos][i] && width <= 2; ++width) {
+  if (control_flag) {
+    /** Manual Rule 0 **/
+    for (int i = 15; i >= 0; --i) {
+      for (int width = 1; width <= mc_shape[pos][i] && width <= 1; ++width) {
         Hand pure_hand = Hand(i, width, 1);
         if (check_valid(pure_hand, prev)) {
           mc_redo(pos, pure_hand);
@@ -772,14 +726,128 @@ Hand mc_step(int pos, Hand prev, int random_number) {
         }
       }
     }
-  }
+  } else {
 
-  /** Search Bomb **/
-if (true) {
-  //if (mc_rem[0] <= 6 || mc_rem[1] <= 6 || mc_rem[2] <= 6) {
-    for (int i = 0; i < 13; ++i) {
-      if (mc_shape[pos][i] == 4) {
-        Hand bomb_hand = Hand(i, 4, 1);
+    /** Manual rule 1: let menban go **/
+    if (pos == 1 && mc_rem[2] == 1) {
+      for (int i = 0; i < 15; ++i) {
+        if (pos[i] > 1) {
+          Hand hand = Hand(i, 1, 1);
+          mc_redo(hand);
+          return hand;
+        }
+      }
+    }
+
+    /** Search Strings, 3+2 and 3+1 **/
+    if (prev.length == 0 || prev.length * prev.width >= 3) {
+      for (auto left = 0; left < 13; ++left) {
+        for (auto width = 1; width <= 4; ++width) {
+          auto length = mc_get_length_with_width(pos, left, width);
+          auto min_length = 7-2*width;
+          if (width == 4) {
+            min_length = 1;
+          }
+          for (auto l = min_length; l <= length; ++l) {
+            Hand string_hand = Hand(left, width, l);
+            // Add carriables for 3-string or pure 3
+            if (width >= 3) {
+              vector<vector<int>> carriables;
+              for (auto carry_width = 1; carry_width < width; ++carry_width) {
+                vector<int> carriable;
+                for (auto i = 0; i < 15; ++i) {
+                  if (i >= left && i < left+l) {
+                    continue;
+                  }
+                  if (mc_shape[pos][i] < carry_width) {
+                    continue;
+                  }
+                  carriable.push_back(i);
+                }
+                carriables.push_back(carriable);
+              }
+
+              for (auto carry_width = 1; carry_width < width; ++carry_width) {
+                auto carriable = carriables[carry_width-1];
+                if (carriable.size() < (width-2)*l) {
+                  continue;
+                }
+                auto combinations = generate_combination(carriable.size(), (width-2)*l);
+                for (auto combination : combinations) {
+                  vector<int> carry;
+                  for (auto index : combination) {
+                    for (int j = 0; j < carry_width; ++j) {
+                      carry.push_back(carriable[index]);
+                    }
+                  }
+                  string_hand.set_carry(carry);
+                  /** Start main evaluation area **/
+                  if (check_valid(string_hand, prev)) {
+                    mc_redo(pos, string_hand);
+                    double val = mc_evaluate(pos);
+                    hands.push_back(make_pair(string_hand, val));
+                    mc_undo(pos, string_hand);
+                  }
+                  /** End main evaluation area **/
+                  string_hand.clear_carry();
+                }
+              }
+            }
+
+            if (!check_valid(string_hand, prev) || string_hand.width == 4) {
+              continue;
+            }
+            mc_redo(pos, string_hand);
+            // Check pure string
+            auto val = mc_evaluate(pos);
+            hands.push_back(make_pair(string_hand, val));
+            mc_undo(pos, string_hand);
+          }
+        }
+      }
+    }
+
+    /** Search pure 1 or 2  card hands **/
+    bool largest_single = true;
+    if (prev.length <= 1) {
+      for (int i = 15; i >= 0; --i) {
+        for (int width = 1; width <= mc_shape[pos][i] && width <= 2; ++width) {
+          Hand pure_hand = Hand(i, width, 1);
+          if (check_valid(pure_hand, prev)) {
+            mc_redo(pos, pure_hand);
+            double val = mc_evaluate(pos);
+            /** Manual Rule 2: Largest Single For Menban when Dizhu only has 1
+             * card **/
+            if (pos != 2 || mc_rem[0] != 1) {
+              hands.push_back(make_pair(pure_hand, val));
+            } else {
+              if (largest_single) {
+                hands.push_back(make_pair(pure_hand, val));
+              }
+              largest_single = false;
+            }
+            mc_undo(pos, pure_hand);
+          }
+        }
+      }
+    }
+
+    /** Search Bomb **/
+    if (true) {
+    //if (mc_rem[0] <= 6 || mc_rem[1] <= 6 || mc_rem[2] <= 6) {
+      for (int i = 0; i < 13; ++i) {
+        if (mc_shape[pos][i] == 4) {
+          Hand bomb_hand = Hand(i, 4, 1);
+          if (check_valid(bomb_hand, prev)) {
+            mc_redo(pos, bomb_hand);
+            double val = mc_evaluate(pos);
+            hands.push_back(make_pair(bomb_hand, val));
+            mc_undo(pos, bomb_hand);
+          }
+        }
+      }
+      if (mc_shape[pos][13] == 1 && mc_shape[pos][14] == 1) {
+        Hand bomb_hand = Hand(13, 1, 2);
         if (check_valid(bomb_hand, prev)) {
           mc_redo(pos, bomb_hand);
           double val = mc_evaluate(pos);
@@ -788,24 +856,16 @@ if (true) {
         }
       }
     }
-    if (mc_shape[pos][13] == 1 && mc_shape[pos][14] == 1) {
-      Hand bomb_hand = Hand(13, 1, 2);
-      if (check_valid(bomb_hand, prev)) {
-        mc_redo(pos, bomb_hand);
-        double val = mc_evaluate(pos);
-        hands.push_back(make_pair(bomb_hand, val));
-        mc_undo(pos, bomb_hand);
-      }
-    }
-  }
 
-  /** Search Pass (May be used for cooperation) **/
-  Hand pass_hand = Hand();
-  if (check_valid(pass_hand, prev)) {
-    mc_redo(pos, pass_hand);
-    double val = mc_evaluate(pos);
-    hands.push_back(make_pair(pass_hand, val));
-    mc_undo(pos, pass_hand);
+    /** Search Pass (May be used for cooperation) **/
+    Hand pass_hand = Hand();
+    if (check_valid(pass_hand, prev)) {
+      mc_redo(pos, pass_hand);
+      double val = mc_evaluate(pos);
+      hands.push_back(make_pair(pass_hand, val));
+      mc_undo(pos, pass_hand);
+    }
+
   }
 
   /** Skim **/
