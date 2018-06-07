@@ -10,10 +10,13 @@
 #include <cstdlib>
 #include <list>
 #include <string>
+#include <unordered_map>
 
 #include "jsoncpp/json.h"
 
 using namespace std;
+bool local_debug = false;
+bool mm_flag = true;
 
 /*****************************************************************************/
 // Global Data
@@ -30,7 +33,7 @@ vector<int> my_shape = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
 int remain_shape[15] = {4,4,4,4,4,4,4,4,4,4,4,4,4,1,1};
 int rem[3] = {20,17,17};
 int mc_rem[3];
-int mc_shape[3][15];
+vector<vector<int> > mc_shape;
 int my_pos;
 int last_hand_pos = -1;
 int score[3];
@@ -40,6 +43,21 @@ clock_t start_time;
 bool enemy_is_ordered = true;
 stringstream debug_buffer;
 int encode_mapping[4] = {3,1,2,0};
+unordered_map<int, double> mm_val;
+
+//const int shuffle_times = 1;
+
+/*****************************************************************************/
+// Hash for memoization
+/*****************************************************************************/
+int shape_hash(vector<int> shape) {
+  int ret = 0;
+  for (auto s : shape) {
+    ret *= 4;
+    ret += s;
+  }
+  return ret;
+}
 
 /*****************************************************************************/
 // Data Structure for Hand Type
@@ -211,62 +229,86 @@ double weight[3][23] = { {
 }};
 
 double mc_evaluate(int pos) {
-  int last_zero = -1;
-  int single_string_length = 0;
-  int double_string_length = 0;
-  int triple_string_length = 0;
+  double value = 0.;
+  int hash_val = shape_hash(mc_shape[pos]);
+  if (mm_val.count(hash_val) > 0 && mm_flag) {
+    //std::cout << "hit " << hash_val << " = " << mm_val[hash_val] << endl;
+    value = mm_val[hash_val];
+  } else {
+    int last_zero = -1;
+    int single_string_length = 0;
+    int double_string_length = 0;
+    int triple_string_length = 0;
 
-  // Get Single String Length
-  for (int j = 0; j < 13; ++j) {
-    if (mc_shape[pos][j] == 0 || j == 12) {
-      if (j - 1 - last_zero >= 5) {
-        if (single_string_length < j - 1 - last_zero) {
-          single_string_length = j - 1 - last_zero;
+    // Get Single String Length
+    for (int j = 0; j < 13; ++j) {
+      if (mc_shape[pos][j] == 0 || j == 12) {
+        if (j - 1 - last_zero >= 5) {
+          if (single_string_length < j - 1 - last_zero) {
+            single_string_length = j - 1 - last_zero;
+          }
         }
+        last_zero = j;
       }
-      last_zero = j;
     }
-  }
 
-  // Get Double String Length
-  last_zero = -1;
-  for (int j = 0; j < 13; ++j) {
-    if (mc_shape[pos][j] < 2 || j == 12) {
-      if (j - 1 - last_zero >= 3) {
-        if (double_string_length < j - 1 - last_zero) {
-          double_string_length = j - 1 - last_zero;
+    // Get Double String Length
+    last_zero = -1;
+    for (int j = 0; j < 13; ++j) {
+      if (mc_shape[pos][j] < 2 || j == 12) {
+        if (j - 1 - last_zero >= 3) {
+          if (double_string_length < j - 1 - last_zero) {
+            double_string_length = j - 1 - last_zero;
+          }
         }
+        last_zero = j;
       }
-      last_zero = j;
     }
-  }
 
-  // Get Triple String Length
-  last_zero = -1;
-  for (int j = 0; j < 13; ++j) {
-    if (mc_shape[pos][j] < 3 || j == 12) {
-      if (j - 1 - last_zero >= 2) {
-        if (triple_string_length < j - 1 - last_zero) {
-          triple_string_length = j - 1 - last_zero;
+    // Get Triple String Length
+    last_zero = -1;
+    for (int j = 0; j < 13; ++j) {
+      if (mc_shape[pos][j] < 3 || j == 12) {
+        if (j - 1 - last_zero >= 2) {
+          if (triple_string_length < j - 1 - last_zero) {
+            triple_string_length = j - 1 - last_zero;
+          }
         }
+        last_zero = j;
       }
-      last_zero = j;
     }
-  }
 
-  // Get Non Zero Num and Bomb Num
-  int non_zero_num = 0;
-  int has_bomb = 0;
-  for (int j = 0; j < 15; ++j) {
-    if (mc_shape[pos][j] != 0) {
-      ++non_zero_num;
+    // Get Non Zero Num and Bomb Num
+    int non_zero_num = 0;
+    int has_bomb = 0;
+    for (int j = 0; j < 15; ++j) {
+      if (mc_shape[pos][j] != 0) {
+        ++non_zero_num;
+      }
+      if (mc_shape[pos][j] == 4) {
+        ++has_bomb;
+      }
     }
-    if (mc_shape[pos][j] == 4) {
+    if (mc_shape[pos][14] == 1 && mc_shape[pos][13] == 1) {
       ++has_bomb;
     }
-  }
-  if (mc_shape[pos][14] == 1 && mc_shape[pos][13] == 1) {
-    ++has_bomb;
+
+    // Get All features
+    vector<double> features;
+    features.push_back(1.0);
+    for (int i = 1; i < 15; ++i) {
+      features.push_back(double(mc_shape[pos][i]));
+    }
+    features.push_back(double(single_string_length));
+    features.push_back(double(double_string_length));
+    features.push_back(double(triple_string_length));
+    features.push_back(double(non_zero_num));
+    features.push_back(double(has_bomb));
+
+    for (int i = 0; i < features.size(); ++i) {
+      value += features[i] * weight[pos][i];
+    }
+    mm_val[hash_val] = value;
   }
 
   // Get Control Number
@@ -298,26 +340,9 @@ double mc_evaluate(int pos) {
     control3 += mc_shape[pos][j] >= 3 ? 3 : 0;
   }
 
-  // Get All features
-  vector<double> features;
-  features.push_back(1.0);
-  for (int i = 1; i < 15; ++i) {
-    features.push_back(double(mc_shape[pos][i]));
-  }
-  features.push_back(double(single_string_length));
-  features.push_back(double(double_string_length));
-  features.push_back(double(triple_string_length));
-  features.push_back(double(non_zero_num));
-  features.push_back(double(has_bomb));
-  features.push_back(control1);
-  features.push_back(control2);
-  features.push_back(control3);
-
-  double value = 0.;
-  for (int i = 0; i < features.size(); ++i) {
-    value += features[i] * weight[pos][i];
-  }
-
+  value += (double) control1 * weight[pos][20];
+  value += (double) control2 * weight[pos][21];
+  value += (double) control3 * weight[pos][22];
   /** output features (for debug) **/
   //cout << "features: ";
   //for (auto feature : features) {
@@ -691,32 +716,78 @@ Hand mc_step(int pos, Hand prev, int random_number) {
   auto max_hand = Hand();
   double max_val = -10000.;
   list<pair<Hand, double>> hands;
-  /** Manual Rule 0: Play single when controlled, others > 1 **/
-  bool control_flag = false;
-  int j = 14;
-  for (; j >= 0; --j) {
-    if (mc_shape[(pos+1)%3][j] > 0) {
-      break;
+  /** Search Strings, 3+2 and 3+1 **/
+  if (prev.length == 0 || prev.length * prev.width >= 3) {
+    for (auto left = 0; left < 13; ++left) {
+      for (auto width = 1; width <= 4; ++width) {
+        auto length = mc_get_length_with_width(pos, left, width);
+        auto min_length = 7-2*width;
+        if (width == 4) {
+          min_length = 1;
+        }
+        for (auto l = min_length; l <= length; ++l) {
+          Hand string_hand = Hand(left, width, l);
+          // Add carriables for 3-string or pure 3
+          if (width >= 3) {
+            vector<vector<int>> carriables;
+            for (auto carry_width = 1; carry_width < width; ++carry_width) {
+              vector<int> carriable;
+              for (auto i = 0; i < 15; ++i) {
+                if (i >= left && i < left+l) {
+                  continue;
+                }
+                if (mc_shape[pos][i] < carry_width) {
+                  continue;
+                }
+                carriable.push_back(i);
+              }
+              carriables.push_back(carriable);
+            }
+
+            for (auto carry_width = 1; carry_width < width; ++carry_width) {
+              auto carriable = carriables[carry_width-1];
+              if (carriable.size() < (width-2)*l) {
+                continue;
+              }
+              auto combinations = generate_combination(carriable.size(), (width-2)*l);
+              for (auto combination : combinations) {
+                vector<int> carry;
+                for (auto index : combination) {
+                  for (int j = 0; j < carry_width; ++j) {
+                    carry.push_back(carriable[index]);
+                  }
+                }
+                string_hand.set_carry(carry);
+                /** Start main evaluation area **/
+                if (check_valid(string_hand, prev)) {
+                  mc_redo(pos, string_hand);
+                  double val = mc_evaluate(pos);
+                  hands.push_back(make_pair(string_hand, val));
+                  mc_undo(pos, string_hand);
+                }
+                /** End main evaluation area **/
+                string_hand.clear_carry();
+              }
+            }
+          }
+
+          if (!check_valid(string_hand, prev) || string_hand.width == 4) {
+            continue;
+          }
+          mc_redo(pos, string_hand);
+          // Check pure string
+          auto val = mc_evaluate(pos);
+          hands.push_back(make_pair(string_hand, val));
+          mc_undo(pos, string_hand);
+        }
+      }
     }
-    if (mc_shape[(pos+2)%3][j] > 0) {
-      break;
-    }
-    control_flag = true;
-  }
-  if (pos == 0 && (mc_rem[1] == 1 || mc_rem[2] == 1)) {
-    control_flag = false;
-  }
-  if (pos != 0 && mc_rem[0] == 1) {
-    control_flag = false;
-  }
-  if (!prev.is_pass()) {
-    control_flag = false;
   }
 
-  if (control_flag) {
-    /** Manual Rule 0 **/
-    for (int i = 15; i >= 0; --i) {
-      for (int width = 1; width <= mc_shape[pos][i] && width <= 1; ++width) {
+  /** Search pure 1 or 2  card hands **/
+  if (prev.length <= 1) {
+    for (int i = 0; i < 15; ++i) {
+      for (int width = 1; width <= mc_shape[pos][i] && width <= 2; ++width) {
         Hand pure_hand = Hand(i, width, 1);
         if (check_valid(pure_hand, prev)) {
           mc_redo(pos, pure_hand);
@@ -726,128 +797,14 @@ Hand mc_step(int pos, Hand prev, int random_number) {
         }
       }
     }
-  } else {
+  }
 
-    /** Manual rule 1: let menban go **/
-    if (pos == 1 && mc_rem[2] == 1) {
-      for (int i = 0; i < 15; ++i) {
-        if (pos[i] > 1) {
-          Hand hand = Hand(i, 1, 1);
-          mc_redo(hand);
-          return hand;
-        }
-      }
-    }
-
-    /** Search Strings, 3+2 and 3+1 **/
-    if (prev.length == 0 || prev.length * prev.width >= 3) {
-      for (auto left = 0; left < 13; ++left) {
-        for (auto width = 1; width <= 4; ++width) {
-          auto length = mc_get_length_with_width(pos, left, width);
-          auto min_length = 7-2*width;
-          if (width == 4) {
-            min_length = 1;
-          }
-          for (auto l = min_length; l <= length; ++l) {
-            Hand string_hand = Hand(left, width, l);
-            // Add carriables for 3-string or pure 3
-            if (width >= 3) {
-              vector<vector<int>> carriables;
-              for (auto carry_width = 1; carry_width < width; ++carry_width) {
-                vector<int> carriable;
-                for (auto i = 0; i < 15; ++i) {
-                  if (i >= left && i < left+l) {
-                    continue;
-                  }
-                  if (mc_shape[pos][i] < carry_width) {
-                    continue;
-                  }
-                  carriable.push_back(i);
-                }
-                carriables.push_back(carriable);
-              }
-
-              for (auto carry_width = 1; carry_width < width; ++carry_width) {
-                auto carriable = carriables[carry_width-1];
-                if (carriable.size() < (width-2)*l) {
-                  continue;
-                }
-                auto combinations = generate_combination(carriable.size(), (width-2)*l);
-                for (auto combination : combinations) {
-                  vector<int> carry;
-                  for (auto index : combination) {
-                    for (int j = 0; j < carry_width; ++j) {
-                      carry.push_back(carriable[index]);
-                    }
-                  }
-                  string_hand.set_carry(carry);
-                  /** Start main evaluation area **/
-                  if (check_valid(string_hand, prev)) {
-                    mc_redo(pos, string_hand);
-                    double val = mc_evaluate(pos);
-                    hands.push_back(make_pair(string_hand, val));
-                    mc_undo(pos, string_hand);
-                  }
-                  /** End main evaluation area **/
-                  string_hand.clear_carry();
-                }
-              }
-            }
-
-            if (!check_valid(string_hand, prev) || string_hand.width == 4) {
-              continue;
-            }
-            mc_redo(pos, string_hand);
-            // Check pure string
-            auto val = mc_evaluate(pos);
-            hands.push_back(make_pair(string_hand, val));
-            mc_undo(pos, string_hand);
-          }
-        }
-      }
-    }
-
-    /** Search pure 1 or 2  card hands **/
-    bool largest_single = true;
-    if (prev.length <= 1) {
-      for (int i = 15; i >= 0; --i) {
-        for (int width = 1; width <= mc_shape[pos][i] && width <= 2; ++width) {
-          Hand pure_hand = Hand(i, width, 1);
-          if (check_valid(pure_hand, prev)) {
-            mc_redo(pos, pure_hand);
-            double val = mc_evaluate(pos);
-            /** Manual Rule 2: Largest Single For Menban when Dizhu only has 1
-             * card **/
-            if (pos != 2 || mc_rem[0] != 1) {
-              hands.push_back(make_pair(pure_hand, val));
-            } else {
-              if (largest_single) {
-                hands.push_back(make_pair(pure_hand, val));
-              }
-              largest_single = false;
-            }
-            mc_undo(pos, pure_hand);
-          }
-        }
-      }
-    }
-
-    /** Search Bomb **/
-    if (true) {
-    //if (mc_rem[0] <= 6 || mc_rem[1] <= 6 || mc_rem[2] <= 6) {
-      for (int i = 0; i < 13; ++i) {
-        if (mc_shape[pos][i] == 4) {
-          Hand bomb_hand = Hand(i, 4, 1);
-          if (check_valid(bomb_hand, prev)) {
-            mc_redo(pos, bomb_hand);
-            double val = mc_evaluate(pos);
-            hands.push_back(make_pair(bomb_hand, val));
-            mc_undo(pos, bomb_hand);
-          }
-        }
-      }
-      if (mc_shape[pos][13] == 1 && mc_shape[pos][14] == 1) {
-        Hand bomb_hand = Hand(13, 1, 2);
+  /** Search Bomb **/
+if (true) {
+  //if (mc_rem[0] <= 6 || mc_rem[1] <= 6 || mc_rem[2] <= 6) {
+    for (int i = 0; i < 13; ++i) {
+      if (mc_shape[pos][i] == 4) {
+        Hand bomb_hand = Hand(i, 4, 1);
         if (check_valid(bomb_hand, prev)) {
           mc_redo(pos, bomb_hand);
           double val = mc_evaluate(pos);
@@ -856,16 +813,24 @@ Hand mc_step(int pos, Hand prev, int random_number) {
         }
       }
     }
-
-    /** Search Pass (May be used for cooperation) **/
-    Hand pass_hand = Hand();
-    if (check_valid(pass_hand, prev)) {
-      mc_redo(pos, pass_hand);
-      double val = mc_evaluate(pos);
-      hands.push_back(make_pair(pass_hand, val));
-      mc_undo(pos, pass_hand);
+    if (mc_shape[pos][13] == 1 && mc_shape[pos][14] == 1) {
+      Hand bomb_hand = Hand(13, 1, 2);
+      if (check_valid(bomb_hand, prev)) {
+        mc_redo(pos, bomb_hand);
+        double val = mc_evaluate(pos);
+        hands.push_back(make_pair(bomb_hand, val));
+        mc_undo(pos, bomb_hand);
+      }
     }
+  }
 
+  /** Search Pass (May be used for cooperation) **/
+  Hand pass_hand = Hand();
+  if (check_valid(pass_hand, prev)) {
+    mc_redo(pos, pass_hand);
+    double val = mc_evaluate(pos);
+    hands.push_back(make_pair(pass_hand, val));
+    mc_undo(pos, pass_hand);
   }
 
   /** Skim **/
@@ -1071,7 +1036,9 @@ vector<int> mc_play(Hand prev, bool prev_pass) {
   /** Search Pass (May be used for cooperation) **/
   // Monto Carlo To End
   if (!prev.is_pass()) {
-    hands.push_back(make_pair(Hand(), 0));
+    if (rem[(my_pos+1)%3] > 1 && rem[(my_pos+2)%3] > 1) {
+      hands.push_back(make_pair(Hand(), 0));
+    }
   }
 
   if (hands.size() == 0) {
@@ -1109,7 +1076,6 @@ vector<int> mc_play(Hand prev, bool prev_pass) {
       for (int j = 0; j < game_number; ++j) {
         /** Init card distribution with predict **/
         mc_shuffle(cards);
-
         /*if(i==1 && j ==0){
             clock_t current_time = clock();
             SHUFFLE_SEC = double (current_time - start_time) / CLOCKS_PER_SEC -BEGIN_SECS;
@@ -1150,12 +1116,10 @@ vector<int> mc_play(Hand prev, bool prev_pass) {
         }
         clock_t current_time = clock();
         ELAPSED_SECS = double (current_time - start_time) / CLOCKS_PER_SEC;
-
         /*
         ///estimate rounds begin///
         if (i==1 && j == 0) {
-            int rounds = ceil((0.9-BEGIN_SECS) / ((ELAPSED_SECS-BEGIN_SECS - SHUFFLE_SEC)
-            /hands_searched + SHUFFLE_SEC/logk));
+            int rounds = ceil((0.9-BEGIN_SECS) / ((ELAPSED_SECS-BEGIN_SECS - SHUFFLE_SEC) /hands_searched + SHUFFLE_SEC/logk));
             if(rounds < 5000)
                 rounds = 5000;
             for (int r = 1; r < k; ++r) {
@@ -1165,7 +1129,6 @@ vector<int> mc_play(Hand prev, bool prev_pass) {
         }
         ///estimate rounds end///
         */
-
         if (ELAPSED_SECS > 0.95) {
           int max_win = -0x7FFFFFFF;
           list<pair<Hand, int>>::iterator best_hand;
@@ -1176,7 +1139,7 @@ vector<int> mc_play(Hand prev, bool prev_pass) {
             }
           }
           /// debug begin here
-          debug_buffer << "| TOP k: ";
+          debug_buffer << "| played " << n[i-1]+j << "| TOP k: ";
           for (auto hand_with_win : hands) {
             hand_with_win.first.show();
             debug_buffer << " : " << hand_with_win.second / 200. / (double) (n[i-1]+j) << " , " ;
@@ -1206,19 +1169,17 @@ vector<int> mc_play(Hand prev, bool prev_pass) {
       }
       if(i >= k - 30){
         worst_hand->first.show();
-      debug_buffer << setprecision(3) << fixed << " : "
-                   << min_win / 200. / (double) n[i] << " " << ELAPSED_SECS << "s,";
+      debug_buffer <<setprecision(3)<<fixed<< " : " << min_win / 200. / (double) n[i] << " "<<ELAPSED_SECS<<"s,";
       }
 
       hands.erase(worst_hand);
-
-      if(i == k-1){
-          worst_hand = hands.begin();
-          debug_buffer <<"RES:";
-          min_win = worst_hand->second;
-          worst_hand->first.show();
-          debug_buffer << setprecision(3) << fixed << " : " << min_win / 200. / (double) n[i] << " , " ;
-      }
+    if(i==k-1){
+        worst_hand = hands.begin();
+        debug_buffer <<"RES:";
+        min_win = worst_hand->second;
+        worst_hand->first.show();
+        debug_buffer <<setprecision(3)<<fixed<< " : " << min_win / 200. / (double) n[i] << " , " ;
+    }
       //cout << "used seconds:" << ELAPSED_SECS << endl;
 
     }
@@ -1330,6 +1291,8 @@ void input() {
       remain_cards.erase(card);
     }
   }
+
+  mc_shape = vector<vector<int>>(3, vector<int>(15, 0));
 }
 
 void output(vector<int> cards) {
