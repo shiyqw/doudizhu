@@ -749,7 +749,8 @@ Hand mc_step(int pos, Hand prev, int random_number) {
               if (carriable.size() < (width-2)*l) {
                 continue;
               }
-              auto combinations = generate_combination(carriable.size(), (width-2)*l);
+              auto combinations =
+                  generate_combination(carriable.size(), (width-2)*l);
               for (auto combination : combinations) {
                 vector<int> carry;
                 for (auto index : combination) {
@@ -918,7 +919,7 @@ int mc_run(Hand prev_hand, Hand prev_prev_hand, bool prev_pass) {
 
   }
   int vic_pos;
-  if(mc_rem[0] == 0) {
+  if (mc_rem[0] == 0) {
     vic_pos = 0;
   } else if (mc_rem[1] == 0) {
     vic_pos = 1;
@@ -971,7 +972,8 @@ vector<int> mc_play(Hand prev, bool prev_pass) {
                 continue;
             }
             //string_hand.show();
-            auto combinations = generate_combination(carriable.size(), (width-2)*l);
+            auto combinations =
+                generate_combination(carriable.size(), (width-2)*l);
             for (auto combination : combinations) {
               vector<int> carry;
               for (auto index : combination) {
@@ -1057,11 +1059,12 @@ vector<int> mc_play(Hand prev, bool prev_pass) {
     n.push_back(0);
 
     for (int i = 1; i < k; ++i) {
-      int nk = (int) ceil(1.0 / logk * ((double) (MC_GAME_NUMBERS-k)) / ((double) (k+1-i)));
+      int nk = (int) ceil(1.0 / logk * ((double) (MC_GAME_NUMBERS-k)) /
+                          ((double) (k+1-i)));
       n.push_back(nk);
     }
     int final_candidates = 5;
-    for(int i = max(k-final_candidates+1,1); i<k; ++i){
+    for (int i = max(k-final_candidates+1,1); i<k; ++i) {
         n[i] = 1e8 * max(i-k+final_candidates +1,1);
     }
 
@@ -1076,10 +1079,14 @@ vector<int> mc_play(Hand prev, bool prev_pass) {
       for (int j = 0; j < game_number; ++j) {
         /** Init card distribution with predict **/
         mc_shuffle(cards);
-        /*if(i==1 && j ==0){
-            clock_t current_time = clock();
-            SHUFFLE_SEC = double (current_time - start_time) / CLOCKS_PER_SEC -BEGIN_SECS;
-        }*/
+
+        //if (i == 1 && j == 0) {
+        //    clock_t current_time = clock();
+        //    SHUFFLE_SEC = double (current_time - start_time) /
+        //                  CLOCKS_PER_SEC -
+        //                  BEGIN_SECS;
+        //}
+
         //cout << "shuffle result:" << endl;
         //for (auto card : cards) {
         //  cout << card << ',';
@@ -1094,7 +1101,8 @@ vector<int> mc_play(Hand prev, bool prev_pass) {
           mc_calc_detail(my_pos, hand);
           int win_pos = mc_run(hand, prev, prev_pass);
           //cout << hand.width << endl;
-          //cout << "score : " << score[0] << ',' << score[1] << ',' << score[2] << endl;
+          //cout << "score : " << score[0] << ',' << score[1]
+          //     << ',' << score[2] << endl;
           if (my_pos == 0) {
             int delta = 2*score[0] - (score[1]+score[2]);
             it->second += delta;
@@ -1116,19 +1124,7 @@ vector<int> mc_play(Hand prev, bool prev_pass) {
         }
         clock_t current_time = clock();
         ELAPSED_SECS = double (current_time - start_time) / CLOCKS_PER_SEC;
-        /*
-        ///estimate rounds begin///
-        if (i==1 && j == 0) {
-            int rounds = ceil((0.9-BEGIN_SECS) / ((ELAPSED_SECS-BEGIN_SECS - SHUFFLE_SEC) /hands_searched + SHUFFLE_SEC/logk));
-            if(rounds < 5000)
-                rounds = 5000;
-            for (int r = 1; r < k; ++r) {
-            n[r] = (int) ceil(1.0 / logk * ((double) (rounds-k)) / ((double) (k+1-r)));
-            }
-            game_number = n[1]-n[0];
-        }
-        ///estimate rounds end///
-        */
+
         if (ELAPSED_SECS > 0.95) {
           int max_win = -0x7FFFFFFF;
           list<pair<Hand, int>>::iterator best_hand;
@@ -1142,7 +1138,9 @@ vector<int> mc_play(Hand prev, bool prev_pass) {
           debug_buffer << "| played " << n[i-1]+j << "| TOP k: ";
           for (auto hand_with_win : hands) {
             hand_with_win.first.show();
-            debug_buffer << " : " << hand_with_win.second / 200. / (double) (n[i-1]+j) << " , " ;
+            debug_buffer << " : "
+                         << hand_with_win.second / 200. / (double) (n[i-1]+j)
+                         << " , " ;
           }
           debug_buffer << " | ";
           /// debug end here
@@ -1153,13 +1151,13 @@ vector<int> mc_play(Hand prev, bool prev_pass) {
       int min_win = 0x7FFFFFFF;
       list<pair<Hand, int>>::iterator worst_hand, it;
 
-      /*
-      for (auto hand_with_win : hands) {
-          hand_with_win.first.show();
-          debug_buffer << " : " << hand_with_win.second / 200. / (double) n[i] << " , " ;
-      }
-      debug_buffer << " | ";
-      */
+      // for (auto hand_with_win : hands) {
+      //     hand_with_win.first.show();
+      //     debug_buffer << " : "
+      //                  << hand_with_win.second / 200. / (double) n[i]
+      //                  << " , " ;
+      // }
+      // debug_buffer << " | ";
 
       for (auto it = hands.begin(); it != hands.end(); ++it) {
         if (it->second < min_win) {
@@ -1167,19 +1165,23 @@ vector<int> mc_play(Hand prev, bool prev_pass) {
           min_win = it->second;
         }
       }
-      if(i >= k - 30){
+      if (i >= k - 30) {
         worst_hand->first.show();
-      debug_buffer <<setprecision(3)<<fixed<< " : " << min_win / 200. / (double) n[i] << " "<<ELAPSED_SECS<<"s,";
+        debug_buffer << setprecision(3) << fixed << " : "
+                     << min_win / 200. / (double) n[i] << " "
+                     << ELAPSED_SECS << "s,";
       }
 
       hands.erase(worst_hand);
-    if(i==k-1){
-        worst_hand = hands.begin();
-        debug_buffer <<"RES:";
-        min_win = worst_hand->second;
-        worst_hand->first.show();
-        debug_buffer <<setprecision(3)<<fixed<< " : " << min_win / 200. / (double) n[i] << " , " ;
-    }
+
+      if (i == k-1) {
+          worst_hand = hands.begin();
+          debug_buffer << "RES:";
+          min_win = worst_hand->second;
+          worst_hand->first.show();
+          debug_buffer << setprecision(3) << fixed <<  " : "
+                       << min_win / 200. / (double) n[i] << " , " ;
+      }
       //cout << "used seconds:" << ELAPSED_SECS << endl;
 
     }
