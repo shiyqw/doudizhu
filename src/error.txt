@@ -1,0 +1,12 @@
+ddz.cpp: In function ‘double mc_evaluate(int)’:
+ddz.cpp:233:30: error: invalid conversion from ‘int (*)(std::vector<int>)’ to ‘std::unordered_map<int, double>::key_type {aka int}’ [-fpermissive]
+   if (mm_val.count(shape_hash)) > 0) {
+                              ^
+In file included from /usr/include/c++/7/unordered_map:48:0,
+                 from ddz.cpp:13:
+/usr/include/c++/7/bits/unordered_map.h:940:7: note:   initializing argument 1 of ‘std::unordered_map<_Key, _Tp, _Hash, _Pred, _Alloc>::size_type std::unordered_map<_Key, _Tp, _Hash, _Pred, _Alloc>::count(const key_type&) const [with _Key = int; _Tp = double; _Hash = std::hash<int>; _Pred = std::equal_to<int>; _Alloc = std::allocator<std::pair<const int, double> >; std::unordered_map<_Key, _Tp, _Hash, _Pred, _Alloc>::size_type = long unsigned int; std::unordered_map<_Key, _Tp, _Hash, _Pred, _Alloc>::key_type = int]’
+       count(const key_type& __x) const
+       ^~~~~
+ddz.cpp:233:33: error: expected primary-expression before ‘>’ token
+   if (mm_val.count(shape_hash)) > 0) {
+                                 ^
